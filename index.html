@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Lens</title>
+<style>
+  :root{--bg:#0b0c10;--fg:#ffffff;--mut:#9aa0a6;--acc:#4caf50;--chip:#1f2329}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Ubuntu,sans-serif;display:flex;flex-direction:column;align-items:center;padding:70px 16px}
+  #logo{width:140px;opacity:.95;border-radius:4px}
+  #tagline{margin-top:8px;color:var(--mut);font-size:15px}
+  #searchBox{margin-top:35px;display:flex;gap:10px}
+  input[type="text"]{padding:12px 14px;width:420px;border-radius:7px;border:1px solid #333;background:#111;color:#fff;font-size:15px}
+  button{padding:12px 18px;border-radius:7px;border:none;cursor:pointer;background:var(--acc);color:#000;font-weight:600}
+  #adv{margin-top:16px;font-size:14px;color:#ccc}
+  #advPanel{display:none;margin-top:12px;color:#ccc;font-size:14px;line-height:1.8}
+  #results{margin-top:36px;max-width:900px;width:100%;color:#e8e8e8;font-size:16px;line-height:1.6;word-wrap:break-word}
+  mark{background:#fff59d;color:#000;padding:2px 4px;border-radius:4px}
+</style>
+</head>
+<body>
+  <img id="logo" src="logo.png" alt="Lens Logo" />
+  <div id="tagline">Simple on the outside. Powerful on the inside.</div>
+
+  <div id="searchBox">
+    <input id="query" type="text" placeholder='Search (text, AND/OR/XOR, "bgp mpls"~5, or /regexp/i)' />
+    <button id="goBtn">Search</button>
+  </div>
+
+  <label id="adv"><input type="checkbox" id="advChk" /> Advanced search</label>
+
+  <div id="advPanel">
+    <label><input type="checkbox" id="optRegexp" /> Enable RegExp</label><br>
+    <label><input type="checkbox" id="optLogic" /> Logical operators (AND / OR / XOR)</label><br>
+    <label><input type="checkbox" id="optProx" /> Proximity search</label><br>
+    <label><input type="checkbox" id="optFuzzy" /> Fuzzy search</label><br>
+    <label><input type="checkbox" id="optTech" /> Technical patterns (IPs, ports, ASNs)</label>
+  </div>
+
+  <div id="results"></div>
+
+<script>
+  // UI
+  const $ = s => document.querySelector(s);
+  const advChk = $('#advChk'), advPanel = $('#advPanel');
+  const goBtn = $('#goBtn'), query = $('#query'), results = $('#results');
+  const optRegexp = $('#optRegexp'), optLogic = $('#optLogic'), optProx = $('#optProx'),
+        optFuzzy = $('#optFuzzy'), optTech = $('#optTech');
+
+  advChk.addEventListener('change', () => { advPanel.style.display = advChk.checked ? 'block' : 'none'; });
+  query.addEventListener('keydown', e => { if (e.key === 'Enter') goBtn.click(); });
+
+  // Sample corpus (rápido y sin dependencias). Luego lo cambiamos por carga externa si quieres.
+  const corpus =
+`BGP and MPLS are core in SP networks. MPLS LDP, RSVP-TE, and SR enable label switching.
+OSPF, IS-IS and BGP form the underlay. Engineers watch latency, jitter, packet loss, QoS.
+ASN65001 peers with ASN65002 via eBGP. IPs like 192.168.1.1 and 10.255.0.5 appear in configs.
+Common ports: 443, 22, 179, 80.`;
+
+  // Utilidades rápidas
+  const esc = t => t.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const hl  = (t,re) => t.replace(re, m => `<mark>${m}</mark>`);
+  const rxSafe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  function fuzzyMatch(text, pat){ // subsecuencia O(n)
+    let i=0,j=0, a=text.toLowerCase(), b=pat.toLowerCase();
+    while(i<a.length && j<b.length){ if(a[i++]===b[j]) j++; }
+    return j===b.length;
+  }
+
+  goBtn.addEventListener('click', () => {
+    const q = query.value.trim();
+    if (!q){ results.innerHTML = '<i>Please enter something to search.</i>'; return; }
+
+    let out = esc(corpus);
+
+    // Patrones técnicos (IPs, ASNs, puertos)
+    if (optTech.checked){
+      out = hl(out, /\b\d{1,3}(?:\.\d{1,3}){3}\b/g); // IP
+      out = hl(out, /\bAS\d+\b/g);                   // ASN
+      out = hl(out, /\b\d{1,5}\b/g);                 // Puertos
+    }
+
+    // Fuzzy
+    if (optFuzzy.checked){
+      results.innerHTML = fuzzyMatch(corpus, q) ? `<b>Fuzzy match:</b><br><br>${out}` : '<b>No fuzzy match.</b>';
+      return;
+    }
+
+    // Lógica AND/OR/XOR (simple y veloz)
+    if (optLogic.checked){
+      const parts = q.split(/\s+/);
+      const T = corpus.toLowerCase();
+      const tag = t => `<b>${t} match:</b><br><br>`;
+      if (parts.includes('AND')){
+        const [a,,b] = parts; const A=T.includes(a.toLowerCase()), B=T.includes(b.toLowerCase());
+        results.innerHTML = (A&&B) ? tag('AND') + hl(hl(out,new RegExp(rxSafe(a),'gi')),new RegExp(rxSafe(b),'gi')) : '<b>AND failed.</b>';
+        return;
+      }
+      if (parts.includes('OR')){
+        const [a,,b] = parts; const A=T.includes(a.toLowerCase()), B=T.includes(b.toLowerCase());
+        if(!(A||B)){ results.innerHTML='<b>OR failed.</b>'; return; }
+        let tmp=out; if(A) tmp=hl(tmp,new RegExp(rxSafe(a),'gi')); if(B) tmp=hl(tmp,new RegExp(rxSafe(b),'gi'));
+        results.innerHTML = tag('OR') + tmp; return;
+      }
+      if (parts.includes('XOR')){
+        const [a,,b] = parts; const A=T.includes(a.toLowerCase()), B=T.includes(b.toLowerCase());
+        if (A ^ B){ let tmp=out; if(A) tmp=hl(tmp,new RegExp(rxSafe(a),'gi')); if(B) tmp=hl(tmp,new RegExp(rxSafe(b),'gi'));
+          results.innerHTML = tag('XOR') + tmp; } else results.innerHTML = '<b>XOR failed.</b>';
+        return;
+      }
+    }
+
+    // Proximidad: "foo bar"~5
+    if (optProx.checked){
+      const m = q.match(/"(.+?)"\s*~(\d+)/);
+      if (m){
+        const words = m[1].trim().split(/\s+/), k = Number(m[2]);
+        const re = new RegExp(words.join(`\\s+(?:\\w+\\s+){0,${k}}`),'gi');
+        const hits = corpus.match(re);
+        results.innerHTML = hits ? `<b>Proximity match:</b><br><br>${esc(hits.join('\n'))}` : '<b>No proximity match.</b>';
+        return;
+      }
+    }
+
+    // RegExp
+    if (optRegexp.checked || (q.startsWith('/') && q.lastIndexOf('/')>0)){
+      try{
+        let pat;
+        if (q.startsWith('/') && q.lastIndexOf('/')>0){
+          const end = q.lastIndexOf('/'); pat = new RegExp(q.slice(1,end), q.slice(end+1));
+        } else pat = new RegExp(q,'gi');
+        results.innerHTML = '<b>RegExp result:</b><br><br>' + hl(out, pat);
+      } catch(e){ results.innerHTML = '<b>Invalid RegExp:</b> ' + esc(e.message); }
+      return;
+    }
+
+    // Texto simple
+    const pat = new RegExp(rxSafe(q),'gi');
+    results.innerHTML = '<b>Search result:</b><br><br>' + hl(out, pat);
+  });
+</script>
+</body>
+</html>
