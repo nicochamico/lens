@@ -125,7 +125,7 @@
       });
     }
 
-    document.querySelector('#btnSearch').onclick = function() {
+    function performSearch() {
       var query = document.querySelector('#q').value.trim();
       if (!query) return;
 
@@ -133,7 +133,15 @@
 
       var highlightedText = highlightResults(text, query);
       document.querySelector('#results').innerHTML = highlightedText;
-    };
+    }
+
+    document.querySelector('#btnSearch').onclick = performSearch;
+
+    document.querySelector('#q').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        performSearch();
+      }
+    });
   </script>
 </body>
 </html>
