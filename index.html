@@ -104,16 +104,21 @@
     <button id="btnSearch">Search</button>
   </div>
   <div id="results"></div>
-  <div id="visitorCounter">Visitor Counter: 1596433</div>
+  <div id="visitorCounter">Visitor Counter: 1533699</div>
   <div id="searchTime">Search Time: 0 ms</div>
 
   <script>
     const $ = s => document.querySelector(s);
 
-    // Contador de visitas - comienza con 1596433 y se incrementa de uno en uno
-    let visits = localStorage.getItem('visits') ? parseInt(localStorage.getItem('visits')) : 1596433;
+    // Verificar si existe un valor en localStorage, sino inicializarlo con 1533699
+    let visits = localStorage.getItem('visits');
+    if (!visits) {
+      visits = 1533699;  // Establecer el contador inicial
+      localStorage.setItem('visits', visits); // Guardar el contador en localStorage
+    }
+
+    // Mostrar el contador de visitas
     $('#visitorCounter').innerText = `Visitor Counter: ${visits}`;
-    localStorage.setItem('visits', visits);
 
     // Función para escapar caracteres especiales
     function escapeRegex(s) {
@@ -227,28 +232,11 @@
       const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || []; // Verifica si hay datos, si no, inicializa como array vacío
       const searchData = {
         query: query,
-        date: new Date().toISOString()
+        date: new Date().toISOString() // Se asegura de que la fecha se guarde correctamente
       };
       searchHistory.push(searchData);
-      localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+      localStorage.setItem('searchHistory', JSON.stringify(searchHistory)); // Guarda los datos en localStorage
     }
-
-    // Función para obtener las estadísticas de búsqueda (solo para ti)
-    function getSearchStats() {
-      try {
-        const searchHistory = JSON.parse(localStorage.getItem('searchHistory'));
-        if (!Array.isArray(searchHistory)) { // Verifica que los datos sean un array
-          throw new Error('Data format is incorrect');
-        }
-        return searchHistory;
-      } catch (e) {
-        console.error('Error loading search statistics:', e);
-        return []; // Si hay un error, devuelve un array vacío
-      }
-    }
-
-    // Mostrar estadísticas en la consola
-    console.log(getSearchStats()); // Solo se mostrarán en la consola, no en la página
 
     $('#btnSearch').addEventListener('click', run);
     $('#q').addEventListener('keydown', function (e) {
