@@ -66,6 +66,20 @@
       font-weight: 600;
     }
 
+    #adv {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    #advPanel {
+      display: none;
+      margin-top: 12px;
+      color: #ccc;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
     #results {
       margin-top: 36px;
       max-width: 900px;
@@ -96,56 +110,100 @@
     <input id="q" type="text" placeholder='Search'/>
     <button id="btnSearch">Search</button>
   </div>
+  <label id="adv">
+    <input type="checkbox" id="advChk"/> Advanced search
+  </label>
+  <div id="advPanel">
+    <label><input type="checkbox" id="optRegexp"/> Enable RegExp</label><br>
+    <label><input type="checkbox" id="optLogic"/> Logical operators (AND / OR / XOR)</label><br>
+    <label><input type="checkbox" id="optProx"/> Proximity search</label><br>
+    <label><input type="checkbox" id="optFuzzy"/> Fuzzy search</label><br>
+    <label><input type="checkbox" id="optTech"/> Technical patterns (IPs, ports, ASNs)</label>
+  </div>
   <div id="results"></div>
 
   <script>
-    // Función para escapar caracteres especiales
+    document.querySelector('#advChk').addEventListener('change', function() {
+      document.querySelector('#advPanel').style.display = this.checked ? 'block' : 'none';
+    });
+
     function escapeRegex(string) {
       return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    // Función para manejar búsqueda en DuckDuckGo
+    function highlightResults(text, query) {
+      const regex = new RegExp(escapeRegex(query), 'gi');
+      return text.replace(regex, match => `<mark>${match}</mark>`);
+    }
+
     function searchDuckDuckGo(query) {
-      const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json`;
+      const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1`;
       return fetch(apiUrl)
         .then(response => response.json())
         .then(data => {
-          if (data.AbstractText) {
-            return { source: 'DuckDuckGo', title: query, snippet: data.AbstractText, url: data.AbstractURL };
+          if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+            return data.RelatedTopics
+              .filter(topic => topic.Text && topic.FirstURL)
+              .map(topic => ({
+                source: 'DuckDuckGo',
+                title: topic.Text,
+                snippet: topic.Text,
+                url: topic.FirstURL
+              }));
           } else {
-            return null;
+            return [];
           }
-        })
-        .catch(err => {
-          document.querySelector('#results').innerHTML = `<div class="error">Error: ${err.message}</div>`;
         });
     }
 
-    // Función para resaltar los resultados
-    function highlightResults(text, query) {
-      const regex = new RegExp(escapeRegex(query), 'gi');
-      return text.replace(regex, function(match) {
-        return '<mark>' + match + '</mark>';
-      });
+    function applyAdvancedSearch(text, query, options) {
+      let processedText = text;
+
+      if (options.regexp) {
+        try {
+          const regex = new RegExp(query, 'gi');
+          processedText = processedText.replace(regex, match => `<mark>${match}</mark>`);
+        } catch (e) {
+          return `<span class="error">Invalid RegExp: ${e.message}</span>`;
+        }
+      } else if (options.logic) {
+        const terms = query.split(/\s+(AND|OR|XOR)\s+/i);
+        terms.forEach(term => {
+          if (!['AND', 'OR', 'XOR'].includes(term.toUpperCase())) {
+            const regex = new RegExp(escapeRegex(term), 'gi');
+            processedText = processedText.replace(regex, match => `<mark>${match}</mark>`);
+          }
+        });
+      } else {
+        processedText = highlightResults(text, query);
+      }
+
+      return processedText;
     }
 
-    // Función para realizar la búsqueda
     function performSearch() {
       const query = document.querySelector('#q').value.trim();
       if (!query) return;
 
-      // Búsqueda en DuckDuckGo
+      const options = {
+        regexp: document.querySelector('#optRegexp').checked,
+        logic: document.querySelector('#optLogic').checked,
+        prox: document.querySelector('#optProx').checked,
+        fuzzy: document.querySelector('#optFuzzy').checked,
+        tech: document.querySelector('#optTech').checked
+      };
+
       searchDuckDuckGo(query)
-        .then(result => {
-          if (result) {
-            let highlightedText = highlightResults(result.snippet, query);
-            document.querySelector('#results').innerHTML = `
+        .then(results => {
+          if (results.length > 0) {
+            const html = results.map(result => `
               <div>
                 <h3>Source: ${result.source}</h3>
                 <a href="${result.url}" target="_blank"><strong>${result.title}</strong></a>
-                <p>${highlightedText}</p>
+                <p>${applyAdvancedSearch(result.snippet, query, options)}</p>
               </div>
-            `;
+            `).join('');
+            document.querySelector('#results').innerHTML = html;
           } else {
             document.querySelector('#results').innerHTML = '<div class="error">No results found.</div>';
           }
@@ -155,14 +213,9 @@
         });
     }
 
-    // Ejecutar la búsqueda cuando se haga clic en "Search"
     document.querySelector('#btnSearch').addEventListener('click', performSearch);
-
-    // Permitir búsqueda con la tecla Enter
     document.querySelector('#q').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        performSearch();
-      }
+      if (e.key === 'Enter') performSearch();
     });
   </script>
 </body>
