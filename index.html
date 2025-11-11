@@ -88,12 +88,13 @@
       margin-top: 10px;
     }
 
-    #visitorCounter, #searchTime, #searchStats {
+    #visitorCounter, #searchTime {
       margin-top: 20px;
       color: var(--mut);
       font-size: 14px;
     }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 </head>
 <body>
   <img id="logo" src="logo.png" alt="Lens Logo"/>
@@ -105,7 +106,7 @@
   <div id="results"></div>
   <div id="visitorCounter">Visitor Counter: 1596433</div>
   <div id="searchTime">Search Time: 0 ms</div>
-  <div id="searchStats">Search History: No searches yet</div>
+  <button id="exportBtn">Export Search History to Excel</button>
 
   <script>
     const $ = s => document.querySelector(s);
@@ -141,10 +142,7 @@
     async function searchDuckDuckGo(query) {
       const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=0&no_html=1&no_redirect=1`;
       const res = await fetch(apiUrl);
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Respuesta no es JSON");
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       return flattenDDG(data);
     }
@@ -161,7 +159,7 @@
         }
       });
       if (!out.length && data.AbstractText && data.AbstractURL) {
-        out.push({ t: data.AbstractText, u: cleanDuckURL(data.AbstractURL) });
+        out.push({ t: data.AbstractText, u: data.AbstractURL });
       }
       const seen = new Set();
       return out.filter(x => !seen.has(x.u) && seen.add(x.u));
@@ -243,6 +241,23 @@
       const stats = searchHistory.map(entry => `Search: "${entry.query}" on ${entry.date}`).join('<br>');
       $('#searchStats').innerHTML = stats || 'No search history available.';
     }
+
+    // Función para exportar el historial de búsqueda a Excel
+    function exportToExcel() {
+      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
+      const data = searchHistory.map(entry => ({
+        Query: entry.query,
+        Date: entry.date
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Search History');
+      XLSX.writeFile(wb, 'search_history.xlsx');
+    }
+
+    // Evento para exportar a Excel
+    $('#exportBtn').addEventListener('click', exportToExcel);
 
     $('#btnSearch').addEventListener('click', run);
     $('#q').addEventListener('keydown', function (e) {
