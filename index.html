@@ -1,314 +1,246 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Lens</title>
-  <style>
-    :root {
-      --bg: #0b0c10;
-      --fg: #ffffff;
-      --mut: #9aa0a6;
-      --acc: #4caf50;
-      --chip: #1f2329;
-    }
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Lens</title>
+<style>
+:root {
+--bg: #0b0c10;
+--fg: #ffffff;
+--mut: #9aa0a6;
+--acc: #4caf50;
+--chip: #1f2329;
+}
+* {
+  box-sizing: border-box;
+}
 
-    * {
-      box-sizing: border-box;
-    }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, Segoe UI, Roboto, Ubuntu, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 70px 16px;
+}
 
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--fg);
-      font-family: system-ui, Segoe UI, Roboto, Ubuntu, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 70px 16px;
-    }
+#logo {
+  width: 140px;
+  opacity: .95;
+  border-radius: 4px;
+}
 
-    #logo {
-      width: 140px;
-      opacity: .95;
-      border-radius: 4px;
-    }
+#tagline {
+  margin-top: 8px;
+  color: var(--mut);
+  font-size: 15px;
+}
 
-    #tagline {
-      margin-top: 8px;
-      color: var(--mut);
-      font-size: 15px;
-    }
+#searchBox {
+  margin-top: 35px;
+  display: flex;
+  gap: 10px;
+}
 
-    #searchBox {
-      margin-top: 35px;
-      display: flex;
-      gap: 10px;
-    }
+input[type="text"] {
+  padding: 12px 14px;
+  width: 420px;
+  border-radius: 7px;
+  border: 1px solid #333;
+  background: #111;
+  color: #fff;
+  font-size: 15px;
+}
 
-    input[type="text"] {
-      padding: 12px 14px;
-      width: 420px;
-      border-radius: 7px;
-      border: 1px solid #333;
-      background: #111;
-      color: #fff;
-      font-size: 15px;
-    }
+button {
+  padding: 12px 18px;
+  border-radius: 7px;
+  border: none;
+  cursor: pointer;
+  background: var(--acc);
+  color: #000;
+  font-weight: 600;
+}
 
-    button {
-      padding: 12px 18px;
-      border-radius: 7px;
-      border: none;
-      cursor: pointer;
-      background: var(--acc);
-      color: #000;
-      font-weight: 600;
-    }
+#results {
+  margin-top: 36px;
+  max-width: 900px;
+  width: 100%;
+  color: #e8e8e8;
+  font-size: 16px;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
 
-    #results {
-      margin-top: 36px;
-      max-width: 900px;
-      width: 100%;
-      color: #e8e8e8;
-      font-size: 16px;
-      line-height: 1.6;
-      word-wrap: break-word;
-    }
+mark {
+  background: #fff59d;
+  color: #000;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
 
-    mark {
-      background: #fff59d;
-      color: #000;
-      padding: 2px 4px;
-      border-radius: 4px;
-    }
+.error {
+  color: #ff6b6b;
+  margin-top: 10px;
+}
 
-    .error {
-      color: #ff6b6b;
-      margin-top: 10px;
-    }
-
-    #visitorCounter, #searchTime {
-      margin-top: 20px;
-      color: var(--mut);
-      font-size: 14px;
-    }
-  </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+#visitorCounter, #searchTime {
+  margin-top: 20px;
+  color: var(--mut);
+  font-size: 14px;
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 </head>
 <body>
-  <img id="logo" src="logo.png" alt="Lens Logo"/>
-  <div id="tagline">Simple on the outside. Powerful on the inside.</div>
-  <div id="searchBox">
-    <input id="q" type="text" placeholder='Search'/>
-    <button id="btnSearch">Search</button>
-  </div>
-  <div id="results"></div>
-  <div id="visitorCounter">Visitor Counter: 1569333</div>
-  <div id="searchTime">Search Time: 0 ms</div>
+<img id="logo" src="logo.png" alt="Lens Logo"/>
+<div id="tagline">Simple on the outside. Powerful on the inside.</div>
+<div id="searchBox">
+<input id="q" type="text" placeholder='Search'/>
+<button id="btnSearch">Search</button>
+</div>
+<div id="results"></div>
+<div id="visitorCounter">Visitor Counter: 1569333</div>
+<div id="searchTime">Search Time: 0 ms</div>
+<script>
+const $ = s => document.querySelector(s);
+// Inicializar y actualizar el contador de visitas
+let visits = localStorage.getItem('visits');
+if (visits === null) {
+    visits = 1569333; // Establecer el contador inicial
+} else {
+    visits = parseInt(visits) + 1; // Incrementar el contador en 1
+}
+localStorage.setItem('visits', visits); // Guardar el contador actualizado en localStorage
+$('#visitorCounter').innerText = `Visitor Counter: ${visits}`; // Mostrar el contador de visitas
 
-  <script>
-    const $ = s => document.querySelector(s);
+// Función para escapar caracteres especiales
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-    // Inicializar y actualizar el contador de visitas
-    let visits = localStorage.getItem('visits');
-    if (visits === null) {
-        visits = 1569333;  // Establecer el contador inicial
-    } else {
-        visits = parseInt(visits) + 1;  // Incrementar el contador en 1
+// Función para resaltar el texto
+function highlight(t, q) {
+  return t.replace(new RegExp(escapeRegex(q), 'gi'), m => `<mark>${m}</mark>`);
+}
+
+// Función para limpiar las URL que redirigen a DuckDuckGo
+function cleanDuckURL(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname === 'duckduckgo.com' && u.pathname === '/l/') {
+      const real = u.searchParams.get('uddg');
+      if (real) return decodeURIComponent(real);
     }
-    localStorage.setItem('visits', visits);  // Guardar el contador actualizado en localStorage
-    $('#visitorCounter').innerText = `Visitor Counter: ${visits}`;  // Mostrar el contador de visitas
+  } catch {}
+  return url;
+}
 
-    // Clave API de Brave (requiere que configures tu cuenta en Brave)
-    const BRAVE_API_KEY = 'TU_CLAVE_DE_API_DE_BRAVE';
+// Función para realizar la búsqueda en DuckDuckGo
+async function searchDuckDuckGo(query) {
+  const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=0&no_html=1&no_redirect=1`;
+  const res = await fetch(apiUrl);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return flattenDDG(data);
+}
 
-    // Función para escapar caracteres especiales
-    function escapeRegex(s) {
-      return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Función para obtener los resultados completos de DuckDuckGo
+function flattenDDG(data) {
+  const out = [];
+  (data.Results || []).forEach(r => r.Text && r.FirstURL && out.push({ t: r.Text, u: cleanDuckURL(r.FirstURL) }));
+  (data.RelatedTopics || []).forEach(rt => {
+    if (rt.Topics) {
+      rt.Topics.forEach(t => t.Text && t.FirstURL && out.push({ t: t.Text, u: cleanDuckURL(t.FirstURL) }));
+    } else if (rt.Text && rt.FirstURL) {
+      out.push({ t: rt.Text, u: cleanDuckURL(rt.FirstURL) });
     }
+  });
+  if (!out.length && data.AbstractText && data.AbstractURL) {
+    out.push({ t: data.AbstractText, u: data.AbstractURL });
+  }
+  const seen = new Set();
+  return out.filter(x => !seen.has(x.u) && seen.add(x.u));
+}
 
-    // Función para resaltar el texto
-    function highlight(t, q) {
-      try {
-        const regex = q.startsWith('/') && q.endsWith('/')
-          ? new RegExp(q.slice(1, -1), 'gi')
-          : new RegExp(escapeRegex(q), 'gi');
-        return t.replace(regex, m => `<mark>${m}</mark>`);
-      } catch {
-        return t;
-      }
+// Función para mostrar los resultados
+function rowHTML(it, q) {
+  const url = new URL(it.u);
+  const host = url.hostname;
+  const fav = `https://icons.duckduckgo.com/ip3/${host}.ico`;
+  const title = it.t.split(' - ')[0];
+  const snippet = highlight(trimText(it.t, 220), q);
+  return `
+    <article style="padding:12px 0;border-top:1px solid #242424">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <img src="${fav}" alt="" width="16" height="16" loading="lazy"/>
+        <a href="${it.u}" target="_blank" rel="noopener noreferrer"><strong>${title}</strong></a>
+      </div>
+      <div style="color:#cfcfcf;margin-top:6px">${snippet}</div>
+      <div style="color:#8b8b8b;font-size:12px;margin-top:4px">${host}</div>
+    </article>`;
+}
+
+// Función para cortar el texto
+function trimText(s, len = 220) {
+  if (!s) return '';
+  return s.length > len ? s.slice(0, len).replace(/\s+\S*$/, '') + '…' : s;
+}
+
+// Función para realizar la búsqueda
+async function run() {
+  const q = $('#q').value.trim();
+  if (!q) return;
+  
+  const startTime = performance.now(); // Marca el tiempo de inicio
+
+  $('#results').innerHTML = 'Buscando…';
+  try {
+    const items = await searchDuckDuckGo(q);
+    if (!items.length) {
+      $('#results').innerHTML = '<div class="error">Sin resultados.</div>';
+      return;
     }
+    const html = items.slice(0, 10).map(it => rowHTML(it, q)).join('');
+    $('#results').innerHTML = html;
 
-    // Función para limpiar las URL que redirigen a DuckDuckGo
-    function cleanDuckURL(url) {
-      try {
-        const u = new URL(url);
-        if (u.hostname === 'duckduckgo.com' && u.pathname === '/l/') {
-          const real = u.searchParams.get('uddg');
-          if (real) return decodeURIComponent(real);
-        }
-      } catch {}
-      return url;
-    }
+    const endTime = performance.now(); // Marca el tiempo de fin
+    const searchDuration = (endTime - startTime).toFixed(2);
+    $('#searchTime').innerText = `Search Time: ${searchDuration} ms`; // Muestra el tiempo de búsqueda
 
-    // Función para realizar la búsqueda en DuckDuckGo
-    async function searchDuckDuckGo(query) {
-      const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=0&no_html=1&no_redirect=1`;
-      const res = await fetch(apiUrl);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      return flattenDDG(data);
-    }
+    // Incrementa el contador de visitas
+    visits++;
+    $('#visitorCounter').innerText = `Visitor Counter: ${visits}`;
+    localStorage.setItem('visits', visits); // Guarda el contador actualizado
 
-    // Función para realizar la búsqueda en Brave Search API
-    async function searchWithBrave(query) {
-      const endpoint = 'https://api.search.brave.com/search';
-      const res = await fetch(endpoint + `?q=${encodeURIComponent(query)}`, {
-        headers: {
-          'Authorization': `Bearer ${BRAVE_API_KEY}`,
-          'Accept': 'application/json'
-        }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      // Aquí adapta para extraer los resultados en el formato que usas (t,u)
-      return data.results.map(r => ({
-        t: r.title,
-        u: r.url
-      }));
-    }
+    // Guardar estadísticas de búsqueda
+    saveSearchStats(q);
 
-    // Función para obtener los resultados completos de DuckDuckGo
-    function flattenDDG(data) {
-      const out = [];
-      (data.Results || []).forEach(r => r.Text && r.FirstURL && out.push({ t: r.Text, u: cleanDuckURL(r.FirstURL) }));
-      (data.RelatedTopics || []).forEach(rt => {
-        if (rt.Topics) {
-          rt.Topics.forEach(t => t.Text && t.FirstURL && out.push({ t: t.Text, u: cleanDuckURL(t.FirstURL) }));
-        } else if (rt.Text && rt.FirstURL) {
-          out.push({ t: rt.Text, u: cleanDuckURL(t.FirstURL) });
-        }
-      });
-      if (!out.length && data.AbstractText && data.AbstractURL) {
-        out.push({ t: data.AbstractText, u: data.AbstractURL });
-      }
-      const seen = new Set();
-      return out.filter(x => !seen.has(x.u) && seen.add(x.u));
-    }
+  } catch (e) {
+    $('#results').innerHTML = `<div class="error">Error: ${e.message}</div>`;
+  }
+}
 
-    // Función para mostrar los resultados
-    function rowHTML(it, q) {
-      const url = new URL(it.u);
-      const host = url.hostname;
-      const fav = `https://icons.duckduckgo.com/ip3/${host}.ico`;
-      const title = it.t.split(' - ')[0];
-      const snippet = highlight(trimText(it.t, 220), q);
-      return `
-        <article style="padding:12px 0;border-top:1px solid #242424">
-          <div style="display:flex;gap:8px;align-items:center;">
-            <img src="${fav}" alt="" width="16" height="16" loading="lazy"/>
-            <a href="${it.u}" target="_blank" rel="noopener noreferrer"><strong>${title}</strong></a>
-          </div>
-          <div style="color:#cfcfcf;margin-top:6px">${snippet}</div>
-          <div style="color:#8b8b8b;font-size:12px;margin-top:4px">${host}</div>
-        </article>`;
-    }
+// Función para guardar estadísticas de búsqueda
+function saveSearchStats(query) {
+  const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || []; // Verifica si hay datos, si no, inicializa como array vacío
+  const searchData = {
+    query: query,
+    date: new Date().toISOString() // Se asegura de que la fecha se guarde correctamente
+  };
+  searchHistory.push(searchData);
+  localStorage.setItem('searchHistory', JSON.stringify(searchHistory)); // Guarda los datos en localStorage
+}
 
-    // Función para cortar el texto
-    function trimText(s, len = 220) {
-      if (!s) return '';
-      return s.length > len ? s.slice(0, len).replace(/\s+\S*$/, '') + '…' : s;
-    }
-
-    // Función para procesar la consulta de búsqueda
-    function preprocessQuery(q) {
-      return q
-        .replace(/\s+AND\s+/gi, ' ')
-        .replace(/\s+OR\s+/gi, ' ')
-        .replace(/\s+NOT\s+/gi, ' ');
-    }
-
-    // Función para aplicar los filtros avanzados (AND, OR, NOT)
-    function applyAdvancedFilters(results, rawQuery) {
-      const isRegex = rawQuery.startsWith('/') && rawQuery.endsWith('/');
-      if (isRegex) {
-        try {
-          const regex = new RegExp(rawQuery.slice(1, -1), 'i');
-          return results.filter(r => regex.test(r.t));
-        } catch {
-          return results;
-        }
-      }
-
-      const orParts = rawQuery.split(/\s+OR\s+/i);
-      return results.filter(r => {
-        return orParts.some(part => {
-          const terms = part.trim().split(/\s+/);
-          return terms.every(term => {
-            if (term.startsWith('-')) {
-              return !r.t.toLowerCase().includes(term.slice(1).toLowerCase());
-            }
-            return r.t.toLowerCase().includes(term.toLowerCase());
-          });
-        });
-      });
-    }
-
-    // Función para ejecutar la búsqueda
-    async function run() {
-      const rawQuery = $('#q').value.trim();
-      if (!rawQuery) return;
-
-      const startTime = performance.now();
-      $('#results').innerHTML = 'Buscando…';
-
-      try {
-        // Primero intentamos obtener los resultados de Brave
-        const items = await searchWithBrave(rawQuery);
-        
-        // Si Brave no tiene resultados o algo falla, usamos DuckDuckGo como respaldo
-        if (!items.length) {
-          console.log('Brave Search no ha dado resultados, intentando con DuckDuckGo...');
-          const items = await searchDuckDuckGo(rawQuery);
-        }
-
-        // Aplicamos los filtros avanzados
-        const filtered = applyAdvancedFilters(items, rawQuery);
-
-        if (!filtered.length) {
-          $('#results').innerHTML = '<div class="error">Sin resultados.</div>';
-          return;
-        }
-
-        const html = filtered.slice(0, 10).map(it => rowHTML(it, rawQuery)).join('');
-        $('#results').innerHTML = html;
-
-        const endTime = performance.now();
-        const searchDuration = (endTime - startTime).toFixed(2);
-        $('#searchTime').innerText = `Search Time: ${searchDuration} ms`;
-
-        saveSearchStats(rawQuery);
-      } catch (e) {
-        $('#results').innerHTML = `<div class="error">Error: ${e.message}</div>`;
-      }
-    }
-
-    // Función para guardar estadísticas de búsqueda
-    function saveSearchStats(query) {
-      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
-      const searchData = {
-        query: query,
-        date: new Date().toISOString()
-      };
-      searchHistory.push(searchData);
-      localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
-    }
-
-    $('#btnSearch').addEventListener('click', run);
-    $('#q').addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') run();
-    });
-  </script>
+$('#btnSearch').addEventListener('click', run);
+$('#q').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') {
+    run();
+  }
+});
+</script>
 </body>
 </html>
