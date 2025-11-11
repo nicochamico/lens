@@ -93,33 +93,44 @@
   <img id="logo" src="logo.png" alt="Lens Logo"/>
   <div id="tagline">Simple on the outside. Powerful on the inside.</div>
   <div id="searchBox">
-    <input id="q" type="text" placeholder='Search (e.g., "bgp mpls")'/>
+    <input id="q" type="text" placeholder='Search'/>
     <button id="btnSearch">Search</button>
   </div>
   <div id="results"></div>
 
   <script>
-    // Función para resaltar los resultados
-    function highlightResults(text, query) {
-      var regex = new RegExp(query, 'gi'); // 'gi' para búsqueda insensible a mayúsculas y global
-      return text.replace(regex, function(match) {
-        return '<mark>' + match + '</mark>';
-      });
-    }
-
-    // Función para realizar la búsqueda
+    // Función para manejar la búsqueda usando DuckDuckGo API
     function performSearch() {
       var query = document.querySelector('#q').value.trim();
-      if (!query) return;  // No hacer nada si el campo de búsqueda está vacío
+      if (!query) return;
 
-      var text = `BGP and MPLS are core in SP networks. MPLS LDP, RSVP-TE, and SR enable label switching. OSPF, IS-IS and BGP form the underlay. Engineers watch latency, jitter, packet loss, QoS. ASN65001 peers with ASN65002 via eBGP. IPs like 192.168.1.1 and 10.255.0.5 appear in configs. Common ports: 443, 22, 179, 80.`; // El texto en el que buscar
+      // URL de DuckDuckGo Instant Answer API
+      var apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json`;
 
-      var highlightedText = highlightResults(text, query); // Resalta las coincidencias
-      document.querySelector('#results').innerHTML = highlightedText; // Muestra los resultados
+      // Hacer la llamada a la API
+      fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+          // Si hay resultados, mostrar el resumen
+          if (data.AbstractText) {
+            document.querySelector('#results').innerHTML = `
+              <div>
+                <h3>Resultados para: ${query}</h3>
+                <p>${data.AbstractText}</p>
+                <a href="${data.AbstractURL}" target="_blank">Leer más</a>
+              </div>
+            `;
+          } else {
+            document.querySelector('#results').innerHTML = '<div class="error">No se encontraron resultados.</div>';
+          }
+        })
+        .catch(err => {
+          document.querySelector('#results').innerHTML = `<div class="error">Error al buscar: ${err}</div>`;
+        });
     }
 
     // Ejecutar la búsqueda cuando se haga clic en "Search"
-    document.querySelector('#btnSearch').onclick = performSearch;
+    document.querySelector('#btnSearch').addEventListener('click', performSearch);
 
     // Permitir búsqueda con la tecla Enter
     document.querySelector('#q').addEventListener('keydown', function(e) {
