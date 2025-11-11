@@ -104,33 +104,30 @@
     <button id="btnSearch">Search</button>
   </div>
   <div id="results"></div>
-  <div id="visitorCounter">Visitor Counter: 1533699</div>
+  <div id="visitorCounter">Visitor Counter: 1569333</div>
   <div id="searchTime">Search Time: 0 ms</div>
 
   <script>
     const $ = s => document.querySelector(s);
 
-    // Verificar si existe un valor en localStorage, sino inicializarlo con 1533699
+    // Inicializar y actualizar el contador de visitas
     let visits = localStorage.getItem('visits');
     if (!visits) {
-      visits = 1533699;  // Establecer el contador inicial
-      localStorage.setItem('visits', visits); // Guardar el contador en localStorage
+      visits = 1569333;
+    } else {
+      visits = parseInt(visits) + 1;
     }
-
-    // Mostrar el contador de visitas
+    localStorage.setItem('visits', visits);
     $('#visitorCounter').innerText = `Visitor Counter: ${visits}`;
 
-    // Función para escapar caracteres especiales
     function escapeRegex(s) {
       return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    // Función para resaltar el texto
     function highlight(t, q) {
       return t.replace(new RegExp(escapeRegex(q), 'gi'), m => `<mark>${m}</mark>`);
     }
 
-    // Función para limpiar las URL que redirigen a DuckDuckGo
     function cleanDuckURL(url) {
       try {
         const u = new URL(url);
@@ -142,7 +139,6 @@
       return url;
     }
 
-    // Función para realizar la búsqueda en DuckDuckGo
     async function searchDuckDuckGo(query) {
       const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=0&no_html=1&no_redirect=1`;
       const res = await fetch(apiUrl);
@@ -151,7 +147,6 @@
       return flattenDDG(data);
     }
 
-    // Función para obtener los resultados completos de DuckDuckGo
     function flattenDDG(data) {
       const out = [];
       (data.Results || []).forEach(r => r.Text && r.FirstURL && out.push({ t: r.Text, u: cleanDuckURL(r.FirstURL) }));
@@ -169,7 +164,6 @@
       return out.filter(x => !seen.has(x.u) && seen.add(x.u));
     }
 
-    // Función para mostrar los resultados
     function rowHTML(it, q) {
       const url = new URL(it.u);
       const host = url.hostname;
@@ -187,19 +181,16 @@
         </article>`;
     }
 
-    // Función para cortar el texto
     function trimText(s, len = 220) {
       if (!s) return '';
       return s.length > len ? s.slice(0, len).replace(/\s+\S*$/, '') + '…' : s;
     }
 
-    // Función para realizar la búsqueda
     async function run() {
       const q = $('#q').value.trim();
       if (!q) return;
-      
-      const startTime = performance.now(); // Marca el tiempo de inicio
 
+      const startTime = performance.now();
       $('#results').innerHTML = 'Buscando…';
       try {
         const items = await searchDuckDuckGo(q);
@@ -210,32 +201,24 @@
         const html = items.slice(0, 10).map(it => rowHTML(it, q)).join('');
         $('#results').innerHTML = html;
 
-        const endTime = performance.now(); // Marca el tiempo de fin
+        const endTime = performance.now();
         const searchDuration = (endTime - startTime).toFixed(2);
-        $('#searchTime').innerText = `Search Time: ${searchDuration} ms`; // Muestra el tiempo de búsqueda
+        $('#searchTime').innerText = `Search Time: ${searchDuration} ms`;
 
-        // Incrementa el contador de visitas
-        visits++;
-        $('#visitorCounter').innerText = `Visitor Counter: ${visits}`;
-        localStorage.setItem('visits', visits); // Guarda el contador actualizado
-
-        // Guardar estadísticas de búsqueda
         saveSearchStats(q);
-
       } catch (e) {
         $('#results').innerHTML = `<div class="error">Error: ${e.message}</div>`;
       }
     }
 
-    // Función para guardar estadísticas de búsqueda
     function saveSearchStats(query) {
-      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || []; // Verifica si hay datos, si no, inicializa como array vacío
+      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
       const searchData = {
         query: query,
-        date: new Date().toISOString() // Se asegura de que la fecha se guarde correctamente
+        date: new Date().toISOString()
       };
       searchHistory.push(searchData);
-      localStorage.setItem('searchHistory', JSON.stringify(searchHistory)); // Guarda los datos en localStorage
+      localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
     }
 
     $('#btnSearch').addEventListener('click', run);
