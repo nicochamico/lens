@@ -82,11 +82,6 @@
       padding: 2px 4px;
       border-radius: 4px;
     }
-
-    .error {
-      color: #ff6b6b;
-      margin-top: 10px;
-    }
   </style>
 </head>
 <body>
@@ -99,34 +94,79 @@
   <div id="results"></div>
 
   <script>
-    // Función para manejar la búsqueda usando DuckDuckGo API
-    function performSearch() {
-      var query = document.querySelector('#q').value.trim();
-      if (!query) return;
-
-      // URL de DuckDuckGo Instant Answer API
-      var apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json`;
-
-      // Hacer la llamada a la API
-      fetch(apiUrl)
+    // Función para buscar en Wikipedia
+    function searchWikipedia(query) {
+      const url = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=1&format=json`;
+      return fetch(url)
         .then(response => response.json())
         .then(data => {
-          // Si hay resultados, mostrar el resumen
-          if (data.AbstractText) {
-            document.querySelector('#results').innerHTML = `
-              <div>
-                <h3>Resultados para: ${query}</h3>
-                <p>${data.AbstractText}</p>
-                <a href="${data.AbstractURL}" target="_blank">Leer más</a>
-              </div>
-            `;
+          if (data[1].length > 0) {
+            return { source: 'Wikipedia', title: data[1][0], snippet: data[2][0], url: data[3][0] };
           } else {
-            document.querySelector('#results').innerHTML = '<div class="error">No se encontraron resultados.</div>';
+            return null;
           }
-        })
-        .catch(err => {
-          document.querySelector('#results').innerHTML = `<div class="error">Error al buscar: ${err}</div>`;
         });
+    }
+
+    // Función para buscar en DuckDuckGo
+    function searchDuckDuckGo(query) {
+      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json`;
+      return fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          if (data.AbstractText) {
+            return { source: 'DuckDuckGo', title: query, snippet: data.AbstractText, url: data.AbstractURL };
+          } else {
+            return null;
+          }
+        });
+    }
+
+    // Función para buscar en Bing (requiere una clave de API de Bing)
+    function searchBing(query) {
+      const apiKey = 'YOUR_BING_API_KEY'; // Reemplaza con tu clave API de Bing
+      const url = `https://api.bing.microsoft.com/v7.0/search?q=${encodeURIComponent(query)}`;
+      return fetch(url, {
+        headers: { 'Ocp-Apim-Subscription-Key': apiKey }
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.webPages && data.webPages.value.length > 0) {
+            return { source: 'Bing', title: data.webPages.value[0].name, snippet: data.webPages.value[0].snippet, url: data.webPages.value[0].url };
+          } else {
+            return null;
+          }
+        });
+    }
+
+    // Función principal de búsqueda
+    function performSearch() {
+      const query = document.querySelector('#q').value.trim();
+      if (!query) return;
+
+      // Buscar en las tres fuentes
+      Promise.all([
+        searchWikipedia(query),
+        searchDuckDuckGo(query),
+        searchBing(query)
+      ])
+      .then(results => {
+        const validResults = results.filter(result => result !== null);
+        if (validResults.length > 0) {
+          document.querySelector('#results').innerHTML = validResults.map(result => `
+            <div>
+              <h3>Source: ${result.source}</h3>
+              <a href="${result.url}" target="_blank"><strong>${result.title}</strong></a>
+              <p>${result.snippet}</p>
+            </div>
+          `).join('');
+        } else {
+          document.querySelector('#results').innerHTML = '<div class="error">No results found.</div>';
+        }
+      })
+      .catch(error => {
+        document.querySelector('#results').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      });
     }
 
     // Ejecutar la búsqueda cuando se haga clic en "Search"
