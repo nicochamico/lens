@@ -150,10 +150,9 @@
         tech: document.querySelector('#optTech').checked
       };
 
-      // Texto para buscar dentro
+      // Aquí reemplaza 'text' con un texto de ejemplo para probar, o carga el contenido real que deseas buscar
       var text = `BGP and MPLS are core in SP networks. MPLS LDP, RSVP-TE, and SR enable label switching. OSPF, IS-IS and BGP form the underlay. Engineers watch latency, jitter, packet loss, QoS. ASN65001 peers with ASN65002 via eBGP. IPs like 192.168.1.1 and 10.255.0.5 appear in configs. Common ports: 443, 22, 179, 80.`;
 
-      // Realizamos la búsqueda con las opciones seleccionadas
       var highlightedText = highlightResults(text, query, options);
 
       document.querySelector('#results').innerHTML = highlightedText;
