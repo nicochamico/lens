@@ -66,20 +66,6 @@
       font-weight: 600;
     }
 
-    #adv {
-      margin-top: 16px;
-      font-size: 14px;
-      color: #ccc;
-    }
-
-    #advPanel {
-      display: none;
-      margin-top: 12px;
-      color: #ccc;
-      font-size: 14px;
-      line-height: 1.8;
-    }
-
     #results {
       margin-top: 36px;
       max-width: 900px;
@@ -101,6 +87,25 @@
       color: #ff6b6b;
       margin-top: 10px;
     }
+
+    .loading {
+      font-size: 16px;
+      color: #ccc;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #3498db;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 2s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -110,118 +115,101 @@
     <input id="q" type="text" placeholder='Search'/>
     <button id="btnSearch">Search</button>
   </div>
-  <label id="adv">
-    <input type="checkbox" id="advChk"/> Advanced search
-  </label>
-  <div id="advPanel">
-    <label><input type="checkbox" id="optRegexp"/> Enable RegExp</label><br>
-    <label><input type="checkbox" id="optLogic"/> Logical operators (AND / OR / XOR)</label><br>
-  </div>
   <div id="results"></div>
 
   <script>
     const $ = s => document.querySelector(s);
 
-    $('#advChk').addEventListener('change', () => {
-      $('#advPanel').style.display = $('#advChk').checked ? 'block' : 'none';
-    });
-
+    // Función para escapar caracteres especiales
     function escapeRegex(s) {
       return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    function highlight(text, query, options) {
-      if (options.regexp) {
-        try {
-          const regex = new RegExp(query, 'gi');
-          return text.replace(regex, m => `<mark>${m}</mark>`);
-        } catch {
-          return text;
-        }
-      }
-
-      if (options.logic) {
-        const terms = query.split(/\s+(AND|OR|XOR)\s+/i);
-        return terms.reduce((acc, term) => {
-          if (!['AND', 'OR', 'XOR'].includes(term.toUpperCase())) {
-            const regex = new RegExp(escapeRegex(term), 'gi');
-            acc = acc.replace(regex, m => `<mark>${m}</mark>`);
-          }
-          return acc;
-        }, text);
-      }
-
-      const regex = new RegExp(escapeRegex(query), 'gi');
-      return text.replace(regex, m => `<mark>${m}</mark>`);
+    // Función para resaltar el texto
+    function highlight(t, q) {
+      return t.replace(new RegExp(escapeRegex(q), 'gi'), m => `<mark>${m}</mark>`);
     }
 
+    // Función para escapar caracteres HTML
+    function escapeHTML(s) {
+      return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    }
+
+    // Función para realizar la búsqueda en DuckDuckGo
+    async function searchDuckDuckGo(query) {
+      const proxy = 'https://corsproxy.io/?';
+      const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=0&no_html=1&no_redirect=1`;
+      const res = await fetch(proxy + encodeURIComponent(apiUrl));
+      const contentType = res.headers.get("content-type");
+
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Respuesta no es JSON válida");
+      }
+
+      const data = await res.json();
+      return flattenDDG(data);
+    }
+
+    // Función para obtener los resultados completos de DuckDuckGo
+    function flattenDDG(data) {
+      const out = [];
+      // 1) Results directos
+      (data.Results || []).forEach(r => {
+        if (r.Text && r.FirstURL) out.push({ t: r.Text, u: r.FirstURL });
+      });
+      // 2) RelatedTopics
+      (data.RelatedTopics || []).forEach(rt => {
+        if (rt.Topics) {
+          rt.Topics.forEach(t => { if (t.Text && t.FirstURL) out.push({ t: t.Text, u: t.FirstURL }); });
+        } else if (rt.Text && rt.FirstURL) {
+          out.push({ t: rt.Text, u: rt.FirstURL });
+        }
+      });
+      // 3) Abstract como fallback
+      if (!out.length && data.AbstractText && data.AbstractURL) {
+        out.push({ t: data.AbstractText, u: data.AbstractURL });
+      }
+      // Eliminar duplicados
+      const seen = new Set();
+      return out.filter(x => !seen.has(x.u) && seen.add(x.u));
+    }
+
+    // Función para mostrar los resultados
+    function rowHTML(it, q) {
+      const url = new URL(it.u);
+      const host = url.hostname;
+      const fav = `https://icons.duckduckgo.com/ip3/${host}.ico`;
+      const title = highlight(it.t.split(' - ')[0], q);
+      const snippet = highlight(trimText(it.t, 220), q);
+      return `
+      <article style="padding:12px 0;border-top:1px solid #242424">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <img src="${fav}" alt="" width="16" height="16" loading="lazy"/>
+          <a href="${it.u}" target="_blank" rel="noopener noreferrer"><strong>${title}</strong></a>
+        </div>
+        <div style="color:#cfcfcf;margin-top:6px">${snippet}</div>
+        <div style="color:#8b8b8b;font-size:12px;margin-top:4px">${host}</div>
+      </article>`;
+    }
+
+    // Función para cortar el texto
     function trimText(s, len = 220) {
       if (!s) return '';
       return s.length > len ? s.slice(0, len).replace(/\s+\S*$/, '') + '…' : s;
     }
 
-    async function searchDuckDuckGo(query) {
-      const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&no_redirect=1`;
-      const res = await fetch(apiUrl);
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Respuesta no es JSON");
-      }
-      const data = await res.json();
-      return flattenDDG(data);
-    }
-
-    function flattenDDG(data) {
-      const out = [];
-      (data.Results || []).forEach(r => r.Text && r.FirstURL && out.push({ t: r.Text, u: r.FirstURL }));
-      (data.RelatedTopics || []).forEach(rt => {
-        if (rt.Topics) {
-          rt.Topics.forEach(t => t.Text && t.FirstURL && out.push({ t: t.Text, u: t.FirstURL }));
-        } else if (rt.Text && rt.FirstURL) {
-          out.push({ t: rt.Text, u: rt.FirstURL });
-        }
-      });
-      if (!out.length && data.AbstractText && data.AbstractURL) {
-        out.push({ t: data.AbstractText, u: data.AbstractURL });
-      }
-      const seen = new Set();
-      return out.filter(x => !seen.has(x.u) && seen.add(x.u));
-    }
-
-    function rowHTML(it, q, options) {
-      const url = new URL(it.u);
-      const host = url.hostname;
-      const fav = `https://icons.duckduckgo.com/ip3/${host}.ico`;
-      const title = it.t.split(' - ')[0];
-      const snippet = highlight(trimText(it.t, 220), q, options);
-      return `
-        <article style="padding:12px 0;border-top:1px solid #242424">
-          <div style="display:flex;gap:8px;align-items:center;">
-            <img src="${fav}" alt="" width="16" height="16" loading="lazy"/>
-            <a href="${it.u}" target="_blank" rel="noopener noreferrer"><strong>${title}</strong></a>
-          </div>
-          <div style="color:#cfcfcf;margin-top:6px">${snippet}</div>
-          <div style="color:#8b8b8b;font-size:12px;margin-top:4px">${host}</div>
-        </article>`;
-    }
-
+    // Función para realizar la búsqueda
     async function run() {
       const q = $('#q').value.trim();
       if (!q) return;
-
-      const options = {
-        regexp: $('#optRegexp').checked,
-        logic: $('#optLogic').checked
-      };
-
-      $('#results').innerHTML = 'Buscando…';
+      $('#results').innerHTML = '<div class="loading"><div class="spinner"></div> Buscando…</div>';
       try {
         const items = await searchDuckDuckGo(q);
         if (!items.length) {
           $('#results').innerHTML = '<div class="error">Sin resultados.</div>';
           return;
         }
-        const html = items.slice(0, 10).map(it => rowHTML(it, q, options)).join('');
+        const html = items.slice(0, 10).map(it => rowHTML(it, q)).join('');
         $('#results').innerHTML = html;
       } catch (e) {
         $('#results').innerHTML = `<div class="error">Error: ${e.message}</div>`;
@@ -229,7 +217,11 @@
     }
 
     $('#btnSearch').addEventListener('click', run);
-    $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+    $('#q').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        run();
+      }
+    });
   </script>
 </body>
 </html>
