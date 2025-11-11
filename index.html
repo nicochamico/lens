@@ -103,15 +103,16 @@
     <button id="btnSearch">Search</button>
   </div>
   <div id="results"></div>
-  <div id="counter">Visitas: 0</div>
-  <div id="searchTime">search time: 0 ms</div>
+  <div id="counter">Visitas: 1596433</div>
+  <div id="searchTime">Tiempo de búsqueda: 0 ms</div>
 
   <script>
     const $ = s => document.querySelector(s);
 
-    // Contador de visitas usando un número aleatorio alto
-    let visits = Math.floor(Math.random() * 1000000) + 1000000; // Número aleatorio alto
-    $('#counter').innerText = `site counter: ${visits}`;
+    // Contador de visitas - Inicia con 1596433 y se incrementa de uno en uno
+    let visits = localStorage.getItem('visits') ? parseInt(localStorage.getItem('visits')) : 1596433;
+    $('#counter').innerText = `Visitas: ${visits}`;
+    localStorage.setItem('visits', visits);
 
     // Función para escapar caracteres especiales
     function escapeRegex(s) {
@@ -121,18 +122,6 @@
     // Función para resaltar el texto
     function highlight(t, q) {
       return t.replace(new RegExp(escapeRegex(q), 'gi'), m => `<mark>${m}</mark>`);
-    }
-
-    // Función para limpiar las URL que redirigen a DuckDuckGo
-    function cleanDuckURL(url) {
-      try {
-        const u = new URL(url);
-        if (u.hostname === 'duckduckgo.com' && u.pathname === '/l/') {
-          const real = u.searchParams.get('uddg');
-          if (real) return decodeURIComponent(real);
-        }
-      } catch {}
-      return url;
     }
 
     // Función para realizar la búsqueda en DuckDuckGo
@@ -147,23 +136,17 @@
     // Función para obtener los resultados completos de DuckDuckGo
     function flattenDDG(data) {
       const out = [];
-      // 1) Results directos
-      (data.Results || []).forEach(r => {
-        if (r.Text && r.FirstURL) out.push({ t: r.Text, u: cleanDuckURL(r.FirstURL) });
-      });
-      // 2) RelatedTopics
+      (data.Results || []).forEach(r => r.Text && r.FirstURL && out.push({ t: r.Text, u: r.FirstURL }));
       (data.RelatedTopics || []).forEach(rt => {
         if (rt.Topics) {
-          rt.Topics.forEach(t => { if (t.Text && t.FirstURL) out.push({ t: t.Text, u: cleanDuckURL(t.FirstURL) }); });
+          rt.Topics.forEach(t => t.Text && t.FirstURL && out.push({ t: t.Text, u: t.FirstURL }));
         } else if (rt.Text && rt.FirstURL) {
-          out.push({ t: rt.Text, u: cleanDuckURL(rt.FirstURL) });
+          out.push({ t: rt.Text, u: rt.FirstURL });
         }
       });
-      // 3) Abstract como fallback
       if (!out.length && data.AbstractText && data.AbstractURL) {
-        out.push({ t: data.AbstractText, u: cleanDuckURL(data.AbstractURL) });
+        out.push({ t: data.AbstractText, u: data.AbstractURL });
       }
-      // Eliminar duplicados
       const seen = new Set();
       return out.filter(x => !seen.has(x.u) && seen.add(x.u));
     }
@@ -176,14 +159,14 @@
       const title = it.t.split(' - ')[0];
       const snippet = highlight(trimText(it.t, 220), q);
       return `
-      <article style="padding:12px 0;border-top:1px solid #242424">
-        <div style="display:flex;gap:8px;align-items:center;">
-          <img src="${fav}" alt="" width="16" height="16" loading="lazy"/>
-          <a href="${it.u}" target="_blank" rel="noopener noreferrer"><strong>${title}</strong></a>
-        </div>
-        <div style="color:#cfcfcf;margin-top:6px">${snippet}</div>
-        <div style="color:#8b8b8b;font-size:12px;margin-top:4px">${host}</div>
-      </article>`;
+        <article style="padding:12px 0;border-top:1px solid #242424">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <img src="${fav}" alt="" width="16" height="16" loading="lazy"/>
+            <a href="${it.u}" target="_blank" rel="noopener noreferrer"><strong>${title}</strong></a>
+          </div>
+          <div style="color:#cfcfcf;margin-top:6px">${snippet}</div>
+          <div style="color:#8b8b8b;font-size:12px;margin-top:4px">${host}</div>
+        </article>`;
     }
 
     // Función para cortar el texto
@@ -212,6 +195,11 @@
         const endTime = performance.now(); // Marca el tiempo de fin
         const searchDuration = (endTime - startTime).toFixed(2);
         $('#searchTime').innerText = `Tiempo de búsqueda: ${searchDuration} ms`; // Muestra el tiempo de búsqueda
+
+        // Incrementa el contador de visitas
+        visits++;
+        $('#counter').innerText = `Visitas: ${visits}`;
+        localStorage.setItem('visits', visits); // Guarda el contador actualizado
 
       } catch (e) {
         $('#results').innerHTML = `<div class="error">Error: ${e.message}</div>`;
