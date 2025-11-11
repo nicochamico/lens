@@ -66,6 +66,20 @@
       font-weight: 600;
     }
 
+    #adv {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    #advPanel {
+      display: none;
+      margin-top: 12px;
+      color: #ccc;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
     #results {
       margin-top: 36px;
       max-width: 900px;
@@ -82,6 +96,11 @@
       padding: 2px 4px;
       border-radius: 4px;
     }
+
+    .error {
+      color: #ff6b6b;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -91,27 +110,31 @@
     <input id="q" type="text" placeholder='Search'/>
     <button id="btnSearch">Search</button>
   </div>
+  <label id="adv">
+    <input type="checkbox" id="advChk"/> Advanced search
+  </label>
+  <div id="advPanel">
+    <label><input type="checkbox" id="optRegexp"/> Enable RegExp</label><br>
+    <label><input type="checkbox" id="optLogic"/> Logical operators (AND / OR / XOR)</label><br>
+    <label><input type="checkbox" id="optProx"/> Proximity search</label><br>
+    <label><input type="checkbox" id="optFuzzy"/> Fuzzy search</label><br>
+    <label><input type="checkbox" id="optTech"/> Technical patterns (IPs, ports, ASNs)</label>
+  </div>
   <div id="results"></div>
 
   <script>
-    // Función para buscar en Wikipedia
-    function searchWikipedia(query) {
-      const url = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=1&format=json`;
-      return fetch(url)
-        .then(response => response.json())
-        .then(data => {
-          if (data[1].length > 0) {
-            return { source: 'Wikipedia', title: data[1][0], snippet: data[2][0], url: data[3][0] };
-          } else {
-            return null;
-          }
-        });
-    }
+    // Mostrar/ocultar las opciones de búsqueda avanzada
+    document.querySelector('#advChk').addEventListener('change', function() {
+      var advPanel = document.querySelector('#advPanel');
+      advPanel.style.display = this.checked ? 'block' : 'none';
+    });
 
-    // Función para buscar en DuckDuckGo
+    // Función para realizar la búsqueda en DuckDuckGo
     function searchDuckDuckGo(query) {
-      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json`;
-      return fetch(url)
+      // Usamos CORS Anywhere para evitar problemas con CORS
+      const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+      const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json`;
+      return fetch(proxyUrl + apiUrl)
         .then(response => response.json())
         .then(data => {
           if (data.AbstractText) {
@@ -122,21 +145,27 @@
         });
     }
 
-    // Función para buscar en Bing (requiere una clave de API de Bing)
-    function searchBing(query) {
-      const apiKey = 'YOUR_BING_API_KEY'; // Reemplaza con tu clave API de Bing
-      const url = `https://api.bing.microsoft.com/v7.0/search?q=${encodeURIComponent(query)}`;
-      return fetch(url, {
-        headers: { 'Ocp-Apim-Subscription-Key': apiKey }
-      })
-        .then(response => response.json())
-        .then(data => {
-          if (data.webPages && data.webPages.value.length > 0) {
-            return { source: 'Bing', title: data.webPages.value[0].name, snippet: data.webPages.value[0].snippet, url: data.webPages.value[0].url };
-          } else {
-            return null;
-          }
+    // Función para resaltar los resultados
+    function highlightResults(text, query) {
+      var regex = new RegExp(query, 'gi');
+      return text.replace(regex, function(match) {
+        return '<mark>' + match + '</mark>';
+      });
+    }
+
+    // Función para manejar búsqueda avanzada con opciones
+    function applyAdvancedSearch(query, options) {
+      let resultText = query;
+      if (options.regexp) {
+        const regex = new RegExp(query, 'gi');
+        resultText = resultText.replace(regex, function(match) {
+          return '<mark>' + match + '</mark>';
         });
+      }
+      if (options.logic) {
+        // Implementar lógica adicional si es necesario
+      }
+      return resultText;
     }
 
     // Función principal de búsqueda
@@ -144,29 +173,33 @@
       const query = document.querySelector('#q').value.trim();
       if (!query) return;
 
-      // Buscar en las tres fuentes
-      Promise.all([
-        searchWikipedia(query),
-        searchDuckDuckGo(query),
-        searchBing(query)
-      ])
-      .then(results => {
-        const validResults = results.filter(result => result !== null);
-        if (validResults.length > 0) {
-          document.querySelector('#results').innerHTML = validResults.map(result => `
-            <div>
-              <h3>Source: ${result.source}</h3>
-              <a href="${result.url}" target="_blank"><strong>${result.title}</strong></a>
-              <p>${result.snippet}</p>
-            </div>
-          `).join('');
-        } else {
-          document.querySelector('#results').innerHTML = '<div class="error">No results found.</div>';
-        }
-      })
-      .catch(error => {
-        document.querySelector('#results').innerHTML = `<div class="error">Error: ${error.message}</div>`;
-      });
+      // Obtener opciones avanzadas seleccionadas
+      const options = {
+        regexp: document.querySelector('#optRegexp').checked,
+        logic: document.querySelector('#optLogic').checked,
+        prox: document.querySelector('#optProx').checked,
+        fuzzy: document.querySelector('#optFuzzy').checked,
+        tech: document.querySelector('#optTech').checked
+      };
+
+      searchDuckDuckGo(query)
+        .then(result => {
+          if (result) {
+            let highlightedText = applyAdvancedSearch(result.snippet, options);
+            document.querySelector('#results').innerHTML = `
+              <div>
+                <h3>Source: ${result.source}</h3>
+                <a href="${result.url}" target="_blank"><strong>${result.title}</strong></a>
+                <p>${highlightedText}</p>
+              </div>
+            `;
+          } else {
+            document.querySelector('#results').innerHTML = '<div class="error">No results found.</div>';
+          }
+        })
+        .catch(error => {
+          document.querySelector('#results').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+        });
     }
 
     // Ejecutar la búsqueda cuando se haga clic en "Search"
