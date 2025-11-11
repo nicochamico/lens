@@ -1,270 +1,139 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Lens</title>
-  <style>
-    :root {
-      --bg: #0b0c10;
-      --fg: #ffffff;
-      --mut: #9aa0a6;
-      --acc: #4caf50;
-      --chip: #1f2329;
-    }
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Lens</title>
+    <style>
+      :root {
+        --bg: #0b0c10;
+        --fg: #ffffff;
+        --mut: #9aa0a6;
+        --acc: #4caf50;
+        --chip: #1f2329;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: system-ui, Segoe UI, Roboto, Ubuntu, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 70px 16px;
+      }
+      #logo { width: 140px; opacity: .95; border-radius: 4px; }
+      #tagline { margin-top: 8px; color: var(--mut); font-size: 15px; }
+      #searchBox { margin-top: 35px; display: flex; gap: 10px; }
+      input[type="text"] {
+        padding: 12px 14px;
+        width: 420px;
+        border-radius: 7px;
+        border: 1px solid #333;
+        background: #111;
+        color: #fff;
+        font-size: 15px;
+      }
+      button {
+        padding: 12px 18px;
+        border-radius: 7px;
+        border: none;
+        cursor: pointer;
+        background: var(--acc);
+        color: #000;
+        font-weight: 600;
+      }
+      #adv { margin-top: 16px; font-size: 14px; color: #ccc; }
+      #advPanel { display: none; margin-top: 12px; color: #ccc; font-size: 14px; line-height: 1.8; }
+      #results { margin-top: 36px; max-width: 900px; width: 100%; color: #e8e8e8; font-size: 16px; line-height: 1.6; word-wrap: break-word; }
+      mark { background: #fff59d; color: #000; padding: 2px 4px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <img id="logo" src="logo.png" alt="Lens Logo"/>
+    <div id="tagline">Simple on the outside. Powerful on the inside.</div>
 
-    * {
-      box-sizing: border-box;
-    }
+    <!-- Visitas -->
+    <div id="visitorCount">
+      <p>Visitor Counter: <span id="counter">1533699</span></p>
+    </div>
 
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--fg);
-      font-family: system-ui, Segoe UI, Roboto, Ubuntu, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 70px 16px;
-    }
+    <div id="searchBox">
+      <input id="q" type="text" placeholder='Search (text, AND/OR/XOR, "bgp mpls"~5, or /regexp/i'/>
+      <button id="btnSearch">Search</button>
+    </div>
 
-    #logo {
-      width: 140px;
-      opacity: .95;
-      border-radius: 4px;
-    }
+    <label id="adv">
+      <input type="checkbox" id="advChk"/> Advanced search
+    </label>
+    <div id="advPanel">
+      <label><input type="checkbox" id="optRegexp"/> Enable RegExp</label><br>
+      <label><input type="checkbox" id="optLogic"/> Logical operators (AND / OR / XOR)</label><br>
+      <label><input type="checkbox" id="optProx"/> Proximity search</label><br>
+      <label><input type="checkbox" id="optFuzzy"/> Fuzzy search</label><br>
+      <label><input type="checkbox" id="optTech"/> Technical patterns (IPs, ports, ASNs)</label>
+    </div>
 
-    #tagline {
-      margin-top: 8px;
-      color: var(--mut);
-      font-size: 15px;
-    }
+    <div id="results"></div>
 
-    #searchBox {
-      margin-top: 35px;
-      display: flex;
-      gap: 10px;
-    }
+    <script>
+      // Mostrar/ocultar las opciones de búsqueda avanzada cuando se marque el checkbox
+      document.querySelector('#advChk').addEventListener('change', function() {
+        var advPanel = document.querySelector('#advPanel');
+        advPanel.style.display = this.checked ? 'block' : 'none';
+      });
 
-    input[type="text"] {
-      padding: 12px 14px;
-      width: 420px;
-      border-radius: 7px;
-      border: 1px solid #333;
-      background: #111;
-      color: #fff;
-      font-size: 15px;
-    }
+      // Contador de visitas
+      let visitorCount = 1533699; // Inicia en 1533699
+      document.getElementById('counter').textContent = visitorCount;
 
-    button {
-      padding: 12px 18px;
-      border-radius: 7px;
-      border: none;
-      cursor: pointer;
-      background: var(--acc);
-      color: #000;
-      font-weight: 600;
-    }
+      // Incrementar contador por visita
+      window.onload = function() {
+        visitorCount += 1;
+        document.getElementById('counter').textContent = visitorCount;
+      };
 
-    #results {
-      margin-top: 36px;
-      max-width: 900px;
-      width: 100%;
-      color: #e8e8e8;
-      font-size: 16px;
-      line-height: 1.6;
-      word-wrap: break-word;
-    }
-
-    mark {
-      background: #fff59d;
-      color: #000;
-      padding: 2px 4px;
-      border-radius: 4px;
-    }
-
-    .error {
-      color: #ff6b6b;
-      margin-top: 10px;
-    }
-
-    #visitorCounter, #searchTime {
-      margin-top: 20px;
-      color: var(--mut);
-      font-size: 14px;
-    }
-  </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
-</head>
-<body>
-  <img id="logo" src="logo.png" alt="Lens Logo"/>
-  <div id="tagline">Simple on the outside. Powerful on the inside.</div>
-  <div id="searchBox">
-    <input id="q" type="text" placeholder='Search'/>
-    <button id="btnSearch">Search</button>
-  </div>
-  <div id="results"></div>
-  <div id="visitorCounter">Visitor Counter: 1596433</div>
-  <div id="searchTime">Search Time: 0 ms</div>
-  <button id="exportBtn">Export Search History to Excel</button>
-
-  <script>
-    const $ = s => document.querySelector(s);
-
-    // Contador de visitas - comienza con 1596433 y se incrementa de uno en uno
-    let visits = localStorage.getItem('visits') ? parseInt(localStorage.getItem('visits')) : 1596433;
-    $('#visitorCounter').innerText = `Visitor Counter: ${visits}`;
-    localStorage.setItem('visits', visits);
-
-    // Función para escapar caracteres especiales
-    function escapeRegex(s) {
-      return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-
-    // Función para resaltar el texto
-    function highlight(t, q) {
-      return t.replace(new RegExp(escapeRegex(q), 'gi'), m => `<mark>${m}</mark>`);
-    }
-
-    // Función para limpiar las URL que redirigen a DuckDuckGo
-    function cleanDuckURL(url) {
-      try {
-        const u = new URL(url);
-        if (u.hostname === 'duckduckgo.com' && u.pathname === '/l/') {
-          const real = u.searchParams.get('uddg');
-          if (real) return decodeURIComponent(real);
+      // Función para resaltar los resultados de la búsqueda
+      function highlightResults(text, query, options) {
+        // Si RegExp está habilitado, usamos la expresión regular
+        if (options.regexp) {
+          var regex = new RegExp(query, 'gi');
+          return text.replace(regex, function(match) {
+            return '<mark>' + match + '</mark>';
+          });
         }
-      } catch {}
-      return url;
-    }
+        // Si no, buscamos el texto de forma simple
+        return text.split(query).join('<mark>' + query + '</mark>');
+      }
 
-    // Función para realizar la búsqueda en DuckDuckGo
-    async function searchDuckDuckGo(query) {
-      const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=0&no_html=1&no_redirect=1`;
-      const res = await fetch(apiUrl);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      return flattenDDG(data);
-    }
+      // Realizar la búsqueda
+      function performSearch() {
+        var query = document.querySelector('#q').value.trim();
+        if (!query) return;
+        var options = {
+          regexp: document.querySelector('#optRegexp').checked,
+          logic: document.querySelector('#optLogic').checked,
+          prox: document.querySelector('#optProx').checked,
+          fuzzy: document.querySelector('#optFuzzy').checked,
+          tech: document.querySelector('#optTech').checked
+        };
 
-    // Función para obtener los resultados completos de DuckDuckGo
-    function flattenDDG(data) {
-      const out = [];
-      (data.Results || []).forEach(r => r.Text && r.FirstURL && out.push({ t: r.Text, u: cleanDuckURL(r.FirstURL) }));
-      (data.RelatedTopics || []).forEach(rt => {
-        if (rt.Topics) {
-          rt.Topics.forEach(t => t.Text && t.FirstURL && out.push({ t: t.Text, u: cleanDuckURL(t.FirstURL) }));
-        } else if (rt.Text && rt.FirstURL) {
-          out.push({ t: rt.Text, u: cleanDuckURL(rt.FirstURL) });
+        var text = `BGP and MPLS are core in SP networks. MPLS LDP, RSVP-TE, and SR enable label switching. OSPF, IS-IS and BGP form the underlay. Engineers watch latency, jitter, packet loss, QoS. ASN65001 peers with ASN65002 via eBGP. IPs like 192.168.1.1 and 10.255.0.5 appear in configs. Common ports: 443, 22, 179, 80.`;
+
+        var highlightedText = highlightResults(text, query, options);
+        document.querySelector('#results').innerHTML = highlightedText;
+      }
+
+      // Asignar evento de búsqueda al botón
+      document.querySelector('#btnSearch').onclick = performSearch;
+
+      // Ejecutar búsqueda al presionar Enter
+      document.querySelector('#q').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          performSearch();
         }
       });
-      if (!out.length && data.AbstractText && data.AbstractURL) {
-        out.push({ t: data.AbstractText, u: data.AbstractURL });
-      }
-      const seen = new Set();
-      return out.filter(x => !seen.has(x.u) && seen.add(x.u));
-    }
-
-    // Función para mostrar los resultados
-    function rowHTML(it, q) {
-      const url = new URL(it.u);
-      const host = url.hostname;
-      const fav = `https://icons.duckduckgo.com/ip3/${host}.ico`;
-      const title = it.t.split(' - ')[0];
-      const snippet = highlight(trimText(it.t, 220), q);
-      return `
-        <article style="padding:12px 0;border-top:1px solid #242424">
-          <div style="display:flex;gap:8px;align-items:center;">
-            <img src="${fav}" alt="" width="16" height="16" loading="lazy"/>
-            <a href="${it.u}" target="_blank" rel="noopener noreferrer"><strong>${title}</strong></a>
-          </div>
-          <div style="color:#cfcfcf;margin-top:6px">${snippet}</div>
-          <div style="color:#8b8b8b;font-size:12px;margin-top:4px">${host}</div>
-        </article>`;
-    }
-
-    // Función para cortar el texto
-    function trimText(s, len = 220) {
-      if (!s) return '';
-      return s.length > len ? s.slice(0, len).replace(/\s+\S*$/, '') + '…' : s;
-    }
-
-    // Función para realizar la búsqueda
-    async function run() {
-      const q = $('#q').value.trim();
-      if (!q) return;
-      
-      const startTime = performance.now(); // Marca el tiempo de inicio
-
-      $('#results').innerHTML = 'Buscando…';
-      try {
-        const items = await searchDuckDuckGo(q);
-        if (!items.length) {
-          $('#results').innerHTML = '<div class="error">Sin resultados.</div>';
-          return;
-        }
-        const html = items.slice(0, 10).map(it => rowHTML(it, q)).join('');
-        $('#results').innerHTML = html;
-
-        const endTime = performance.now(); // Marca el tiempo de fin
-        const searchDuration = (endTime - startTime).toFixed(2);
-        $('#searchTime').innerText = `Search Time: ${searchDuration} ms`; // Muestra el tiempo de búsqueda
-
-        // Incrementa el contador de visitas
-        visits++;
-        $('#visitorCounter').innerText = `Visitor Counter: ${visits}`;
-        localStorage.setItem('visits', visits); // Guarda el contador actualizado
-
-        // Guardar estadísticas de búsqueda
-        saveSearchStats(q);
-
-      } catch (e) {
-        $('#results').innerHTML = `<div class="error">Error: ${e.message}</div>`;
-      }
-      showSearchStats(); // Mostrar estadísticas
-    }
-
-    // Función para guardar estadísticas de búsqueda
-    function saveSearchStats(query) {
-      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
-      const searchData = {
-        query: query,
-        date: new Date().toISOString()
-      };
-      searchHistory.push(searchData);
-      localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
-    }
-
-    // Función para mostrar estadísticas de búsqueda
-    function showSearchStats() {
-      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
-      const stats = searchHistory.map(entry => `Search: "${entry.query}" on ${entry.date}`).join('<br>');
-      $('#searchStats').innerHTML = stats || 'No search history available.';
-    }
-
-    // Función para exportar el historial de búsqueda a Excel
-    function exportToExcel() {
-      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
-      const data = searchHistory.map(entry => ({
-        Query: entry.query,
-        Date: entry.date
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Search History');
-      XLSX.writeFile(wb, 'search_history.xlsx');
-    }
-
-    // Evento para exportar a Excel
-    $('#exportBtn').addEventListener('click', exportToExcel);
-
-    $('#btnSearch').addEventListener('click', run);
-    $('#q').addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') {
-        run();
-      }
-    });
-  </script>
-</body>
+    </script>
+  </body>
 </html>
