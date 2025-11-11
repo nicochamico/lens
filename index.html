@@ -87,25 +87,6 @@
       color: #ff6b6b;
       margin-top: 10px;
     }
-
-    .loading {
-      font-size: 16px;
-      color: #ccc;
-    }
-
-    .spinner {
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #3498db;
-      border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      animation: spin 2s linear infinite;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
   </style>
 </head>
 <body>
@@ -130,22 +111,11 @@
       return t.replace(new RegExp(escapeRegex(q), 'gi'), m => `<mark>${m}</mark>`);
     }
 
-    // Función para escapar caracteres HTML
-    function escapeHTML(s) {
-      return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-    }
-
     // Función para realizar la búsqueda en DuckDuckGo
     async function searchDuckDuckGo(query) {
-      const proxy = 'https://corsproxy.io/?';
       const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=0&no_html=1&no_redirect=1`;
-      const res = await fetch(proxy + encodeURIComponent(apiUrl));
-      const contentType = res.headers.get("content-type");
-
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Respuesta no es JSON válida");
-      }
-
+      const res = await fetch(apiUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       return flattenDDG(data);
     }
@@ -179,7 +149,7 @@
       const url = new URL(it.u);
       const host = url.hostname;
       const fav = `https://icons.duckduckgo.com/ip3/${host}.ico`;
-      const title = highlight(it.t.split(' - ')[0], q);
+      const title = it.t.split(' - ')[0];
       const snippet = highlight(trimText(it.t, 220), q);
       return `
       <article style="padding:12px 0;border-top:1px solid #242424">
@@ -202,7 +172,7 @@
     async function run() {
       const q = $('#q').value.trim();
       if (!q) return;
-      $('#results').innerHTML = '<div class="loading"><div class="spinner"></div> Buscando…</div>';
+      $('#results').innerHTML = 'Buscando…';
       try {
         const items = await searchDuckDuckGo(q);
         if (!items.length) {
