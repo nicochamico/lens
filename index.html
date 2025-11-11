@@ -99,75 +99,97 @@
   <div id="results"></div>
 
   <script>
+    const $ = s => document.querySelector(s);
+
     // Función para escapar caracteres especiales
-    function escapeRegex(string) {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    function escapeRegex(s) {
+      return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    // Función para resaltar el texto
+    function highlight(t, q) {
+      return t.replace(new RegExp(escapeRegex(q), 'gi'), m => `<mark>${m}</mark>`);
     }
 
     // Función para realizar la búsqueda en DuckDuckGo
-    function searchDuckDuckGo(query) {
-      const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json`;
-      return fetch(apiUrl)
-        .then(response => response.json())
-        .then(data => {
-          if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-            return data.RelatedTopics
-              .filter(topic => topic.Text && topic.FirstURL)  // Filtra resultados vacíos
-              .map(topic => ({
-                source: 'DuckDuckGo',
-                title: topic.Text,
-                snippet: topic.Text,
-                url: topic.FirstURL
-              }));
-          }
-          return [];
-        })
-        .catch(err => {
-          document.querySelector('#results').innerHTML = `<div class="error">Error: ${err.message}</div>`;
-        });
+    async function searchDuckDuckGo(query) {
+      const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=0&no_html=1&no_redirect=1`;
+      const res = await fetch(apiUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return flattenDDG(data);
     }
 
-    // Función para resaltar los resultados
-    function highlightResults(text, query) {
-      const regex = new RegExp(escapeRegex(query), 'gi');
-      return text.replace(regex, function(match) {
-        return '<mark>' + match + '</mark>';
+    // Función para obtener los resultados completos de DuckDuckGo
+    function flattenDDG(data) {
+      const out = [];
+      // 1) Results directos
+      (data.Results || []).forEach(r => {
+        if (r.Text && r.FirstURL) out.push({ t: r.Text, u: r.FirstURL });
       });
+      // 2) RelatedTopics
+      (data.RelatedTopics || []).forEach(rt => {
+        if (rt.Topics) {
+          rt.Topics.forEach(t => { if (t.Text && t.FirstURL) out.push({ t: t.Text, u: t.FirstURL }); });
+        } else if (rt.Text && rt.FirstURL) {
+          out.push({ t: rt.Text, u: rt.FirstURL });
+        }
+      });
+      // 3) Abstract como fallback
+      if (!out.length && data.AbstractText && data.AbstractURL) {
+        out.push({ t: data.AbstractText, u: data.AbstractURL });
+      }
+      // Eliminar duplicados
+      const seen = new Set();
+      return out.filter(x => !seen.has(x.u) && seen.add(x.u));
     }
 
-    // Función principal de búsqueda
-    function performSearch() {
-      const query = document.querySelector('#q').value.trim();
-      if (!query) return;
-
-      // Búsqueda en DuckDuckGo
-      searchDuckDuckGo(query)
-        .then(results => {
-          if (results.length > 0) {
-            const html = results.map(result => `
-              <div>
-                <h3>Source: ${result.source}</h3>
-                <a href="${result.url}" target="_blank"><strong>${result.title}</strong></a>
-                <p>${highlightResults(result.snippet, query)}</p>
-              </div>
-            `).join('');
-            document.querySelector('#results').innerHTML = html;
-          } else {
-            document.querySelector('#results').innerHTML = '<div class="error">No results found.</div>';
-          }
-        })
-        .catch(error => {
-          document.querySelector('#results').innerHTML = `<div class="error">Error: ${error.message}</div>`;
-        });
+    // Función para mostrar los resultados
+    function rowHTML(it, q) {
+      const url = new URL(it.u);
+      const host = url.hostname;
+      const fav = `https://icons.duckduckgo.com/ip3/${host}.ico`;
+      const title = it.t.split(' - ')[0];
+      const snippet = highlight(trimText(it.t, 220), q);
+      return `
+      <article style="padding:12px 0;border-top:1px solid #242424">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <img src="${fav}" alt="" width="16" height="16" loading="lazy"/>
+          <a href="${it.u}" target="_blank" rel="noopener noreferrer"><strong>${title}</strong></a>
+        </div>
+        <div style="color:#cfcfcf;margin-top:6px">${snippet}</div>
+        <div style="color:#8b8b8b;font-size:12px;margin-top:4px">${host}</div>
+      </article>`;
     }
 
-    // Ejecutar la búsqueda cuando se haga clic en "Search"
-    document.querySelector('#btnSearch').addEventListener('click', performSearch);
+    // Función para cortar el texto
+    function trimText(s, len = 220) {
+      if (!s) return '';
+      return s.length > len ? s.slice(0, len).replace(/\s+\S*$/, '') + '…' : s;
+    }
 
-    // Permitir búsqueda con la tecla Enter
-    document.querySelector('#q').addEventListener('keydown', function(e) {
+    // Función para realizar la búsqueda
+    async function run() {
+      const q = $('#q').value.trim();
+      if (!q) return;
+      $('#results').innerHTML = 'Buscando…';
+      try {
+        const items = await searchDuckDuckGo(q);
+        if (!items.length) {
+          $('#results').innerHTML = '<div class="error">Sin resultados.</div>';
+          return;
+        }
+        const html = items.slice(0, 10).map(it => rowHTML(it, q)).join('');
+        $('#results').innerHTML = html;
+      } catch (e) {
+        $('#results').innerHTML = `<div class="error">Error: ${e.message}</div>`;
+      }
+    }
+
+    $('#btnSearch').addEventListener('click', run);
+    $('#q').addEventListener('keydown', function (e) {
       if (e.key === 'Enter') {
-        performSearch();
+        run();
       }
     });
   </script>
