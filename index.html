@@ -66,20 +66,6 @@
       font-weight: 600;
     }
 
-    #adv {
-      margin-top: 16px;
-      font-size: 14px;
-      color: #ccc;
-    }
-
-    #advPanel {
-      display: none;
-      margin-top: 12px;
-      color: #ccc;
-      font-size: 14px;
-      line-height: 1.8;
-    }
-
     #results {
       margin-top: 36px;
       max-width: 900px;
@@ -107,220 +93,40 @@
   <img id="logo" src="logo.png" alt="Lens Logo"/>
   <div id="tagline">Simple on the outside. Powerful on the inside.</div>
   <div id="searchBox">
-    <input id="q" type="text" placeholder='Search (text, AND/OR/XOR, "bgp mpls"~5, or /regexp/i)'/>
+    <input id="q" type="text" placeholder='Search (e.g., "bgp mpls")'/>
     <button id="btnSearch">Search</button>
-  </div>
-  <label id="adv">
-    <input type="checkbox" id="advChk"/> Advanced search
-  </label>
-  <div id="advPanel">
-    <label><input type="checkbox" id="optRegexp"/> Enable RegExp</label><br>
-    <label><input type="checkbox" id="optLogic"/> Logical operators (AND / OR / XOR)</label><br>
-    <label><input type="checkbox" id="optProx"/> Proximity search</label><br>
-    <label><input type="checkbox" id="optFuzzy"/> Fuzzy search</label><br>
-    <label><input type="checkbox" id="optTech"/> Technical patterns (IPs, ports, ASNs)</label>
   </div>
   <div id="results"></div>
 
   <script>
-    // Mostrar/ocultar las opciones de búsqueda avanzada
-    document.querySelector('#advChk').addEventListener('change', function() {
-      var advPanel = document.querySelector('#advPanel');
-      advPanel.style.display = this.checked ? 'block' : 'none';
-    });
-
-    // Texto de ejemplo para búsqueda
-    const sampleText = `BGP and MPLS are core in SP networks. MPLS LDP, RSVP-TE, and SR enable label switching. OSPF, IS-IS and BGP form the underlay. Engineers watch latency, jitter, packet loss, QoS. ASN65001 peers with ASN65002 via eBGP. IPs like 192.168.1.1 and 10.255.0.5 appear in configs. Common ports: 443, 22, 179, 80.`;
-
-    // Función para escapar caracteres especiales en regex
-    function escapeRegex(string) {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-
-    // Función para validar y crear expresión regular
-    function createRegex(pattern, isRegexEnabled) {
-      if (isRegexEnabled) {
-        try {
-          // Extraer flags si el patrón está entre /.../flags
-          const regexMatch = pattern.match(/^\/(.*)\/([gim]*)$/);
-          if (regexMatch) {
-            return new RegExp(regexMatch[1], regexMatch[2] || 'gi');
-          } else {
-            return new RegExp(pattern, 'gi');
-          }
-        } catch (e) {
-          throw new Error('Invalid regular expression: ' + e.message);
-        }
-      } else {
-        return new RegExp(escapeRegex(pattern), 'gi');
-      }
-    }
-
     // Función para resaltar los resultados
-    function highlightResults(text, query, options) {
-      try {
-        if (options.regexp) {
-          const regex = createRegex(query, true);
-          return text.replace(regex, function(match) {
-            return '<mark>' + match + '</mark>';
-          });
-        } else if (options.logic) {
-          return applyLogicalOperators(text, query, options);
-        } else {
-          // Búsqueda simple
-          const regex = createRegex(query, false);
-          return text.replace(regex, function(match) {
-            return '<mark>' + match + '</mark>';
-          });
-        }
-      } catch (error) {
-        return '<div class="error">Error: ' + error.message + '</div>';
-      }
+    function highlightResults(text, query) {
+      var regex = new RegExp(query, 'gi'); // 'gi' para búsqueda insensible a mayúsculas y global
+      return text.replace(regex, function(match) {
+        return '<mark>' + match + '</mark>';
+      });
     }
 
-    // Función para aplicar operadores lógicos
-    function applyLogicalOperators(text, query, options) {
-      const words = query.split(/\s+/);
-      let searchTerms = [];
-      let currentPhrase = '';
-      let inPhrase = false;
-      let operator = 'OR'; // Operador por defecto
-
-      // Parsear la consulta para detectar operadores y frases
-      for (let word of words) {
-        const upperWord = word.toUpperCase();
-        
-        if (upperWord === 'AND' || upperWord === 'OR' || upperWord === 'XOR') {
-          if (currentPhrase) {
-            searchTerms.push({ type: 'term', value: currentPhrase.trim() });
-            currentPhrase = '';
-          }
-          operator = upperWord;
-          searchTerms.push({ type: 'operator', value: operator });
-        } else if (word.startsWith('"') && word.endsWith('"')) {
-          searchTerms.push({ type: 'term', value: word.slice(1, -1) });
-        } else if (word.startsWith('"')) {
-          inPhrase = true;
-          currentPhrase = word.slice(1) + ' ';
-        } else if (word.endsWith('"')) {
-          currentPhrase += word.slice(0, -1);
-          searchTerms.push({ type: 'term', value: currentPhrase });
-          currentPhrase = '';
-          inPhrase = false;
-        } else if (inPhrase) {
-          currentPhrase += word + ' ';
-        } else {
-          searchTerms.push({ type: 'term', value: word });
-        }
-      }
-
-      if (currentPhrase) {
-        searchTerms.push({ type: 'term', value: currentPhrase.trim() });
-      }
-
-      // Filtrar solo términos (no operadores)
-      const terms = searchTerms.filter(term => term.type === 'term').map(term => term.value);
-      
-      if (terms.length === 0) return text;
-
-      let result = text;
-      
-      // Aplicar operador lógico
-      if (operator === 'AND') {
-        // Resaltar solo si todos los términos están presentes
-        const allPresent = terms.every(term => 
-          new RegExp(escapeRegex(term), 'gi').test(text)
-        );
-        if (allPresent) {
-          terms.forEach(term => {
-            const regex = createRegex(term, false);
-            result = result.replace(regex, match => '<mark>' + match + '</mark>');
-          });
-        }
-      } else if (operator === 'OR') {
-        // Resaltar cualquier término que coincida
-        terms.forEach(term => {
-          const regex = createRegex(term, false);
-          result = result.replace(regex, match => '<mark>' + match + '</mark>');
-        });
-      } else if (operator === 'XOR') {
-        // Resaltar si solo uno de los términos está presente
-        const presentTerms = terms.filter(term => 
-          new RegExp(escapeRegex(term), 'gi').test(text)
-        );
-        if (presentTerms.length === 1) {
-          const regex = createRegex(presentTerms[0], false);
-          result = result.replace(regex, match => '<mark>' + match + '</mark>');
-        }
-      }
-
-      return result;
-    }
-
-    // Función para detectar patrones técnicos
-    function detectTechnicalPatterns(text) {
-      const patterns = {
-        'IP Address': /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
-        'Port Number': /\b(?:[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])\b/g,
-        'ASN': /\bASN?\d+\b/gi
-      };
-
-      let result = text;
-      for (const [type, regex] of Object.entries(patterns)) {
-        result = result.replace(regex, match => 
-          `<mark title="${type}">${match}</mark>` 
-        );
-      }
-      return result;
-    }
-
-    // Función principal de búsqueda
+    // Función para realizar la búsqueda
     function performSearch() {
-      const query = document.querySelector('#q').value.trim();
-      const resultsDiv = document.querySelector('#results');
-      
-      if (!query) {
-        resultsDiv.innerHTML = '<div class="error">Please enter a search query</div>';
-        return;
-      }
+      var query = document.querySelector('#q').value.trim();
+      if (!query) return;  // No hacer nada si el campo de búsqueda está vacío
 
-      // Obtener opciones avanzadas seleccionadas
-      const options = {
-        regexp: document.querySelector('#optRegexp').checked,
-        logic: document.querySelector('#optLogic').checked,
-        prox: document.querySelector('#optProx').checked,
-        fuzzy: document.querySelector('#optFuzzy').checked,
-        tech: document.querySelector('#optTech').checked
-      };
+      var text = `BGP and MPLS are core in SP networks. MPLS LDP, RSVP-TE, and SR enable label switching. OSPF, IS-IS and BGP form the underlay. Engineers watch latency, jitter, packet loss, QoS. ASN65001 peers with ASN65002 via eBGP. IPs like 192.168.1.1 and 10.255.0.5 appear in configs. Common ports: 443, 22, 179, 80.`; // El texto en el que buscar
 
-      let processedText = sampleText;
-
-      // Aplicar detección de patrones técnicos si está habilitada
-      if (options.tech) {
-        processedText = detectTechnicalPatterns(processedText);
-      }
-
-      // Realizar la búsqueda y resaltar
-      try {
-        const highlightedText = highlightResults(processedText, query, options);
-        resultsDiv.innerHTML = `<div class="result-item">${highlightedText}</div>`;
-      } catch (error) {
-        resultsDiv.innerHTML = `<div class="error">Search error: ${error.message}</div>`;
-      }
+      var highlightedText = highlightResults(text, query); // Resalta las coincidencias
+      document.querySelector('#results').innerHTML = highlightedText; // Muestra los resultados
     }
 
     // Ejecutar la búsqueda cuando se haga clic en "Search"
-    document.querySelector('#btnSearch').addEventListener('click', performSearch);
+    document.querySelector('#btnSearch').onclick = performSearch;
 
-    // Permitir búsqueda con Enter
+    // Permitir búsqueda con la tecla Enter
     document.querySelector('#q').addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         performSearch();
       }
     });
-
-    // Inicializar el estado del panel avanzado
-    document.querySelector('#advPanel').style.display = 'none';
   </script>
 </body>
 </html>
