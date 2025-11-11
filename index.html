@@ -109,10 +109,8 @@
   <script>
     const $ = s => document.querySelector(s);
 
-    // Contador de visitas usando localStorage
-    let visits = localStorage.getItem('visits') || 0;
-    visits = parseInt(visits) + 1;
-    localStorage.setItem('visits', visits);
+    // Contador de visitas usando un número aleatorio alto
+    let visits = Math.floor(Math.random() * 1000000) + 1000000; // Número aleatorio alto
     $('#counter').innerText = `Visitas: ${visits}`;
 
     // Función para escapar caracteres especiales
