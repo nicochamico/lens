@@ -88,7 +88,7 @@
       margin-top: 10px;
     }
 
-    #visitorCounter, #searchTime {
+    #visitorCounter, #searchTime, #searchStats {
       margin-top: 20px;
       color: var(--mut);
       font-size: 14px;
@@ -105,6 +105,7 @@
   <div id="results"></div>
   <div id="visitorCounter">Visitor Counter: 1596433</div>
   <div id="searchTime">Search Time: 0 ms</div>
+  <div id="searchStats">Search History: No searches yet</div>
 
   <script>
     const $ = s => document.querySelector(s);
@@ -124,11 +125,26 @@
       return t.replace(new RegExp(escapeRegex(q), 'gi'), m => `<mark>${m}</mark>`);
     }
 
+    // Función para limpiar las URL que redirigen a DuckDuckGo
+    function cleanDuckURL(url) {
+      try {
+        const u = new URL(url);
+        if (u.hostname === 'duckduckgo.com' && u.pathname === '/l/') {
+          const real = u.searchParams.get('uddg');
+          if (real) return decodeURIComponent(real);
+        }
+      } catch {}
+      return url;
+    }
+
     // Función para realizar la búsqueda en DuckDuckGo
     async function searchDuckDuckGo(query) {
       const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=0&no_html=1&no_redirect=1`;
       const res = await fetch(apiUrl);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Respuesta no es JSON");
+      }
       const data = await res.json();
       return flattenDDG(data);
     }
@@ -136,16 +152,16 @@
     // Función para obtener los resultados completos de DuckDuckGo
     function flattenDDG(data) {
       const out = [];
-      (data.Results || []).forEach(r => r.Text && r.FirstURL && out.push({ t: r.Text, u: r.FirstURL }));
+      (data.Results || []).forEach(r => r.Text && r.FirstURL && out.push({ t: r.Text, u: cleanDuckURL(r.FirstURL) }));
       (data.RelatedTopics || []).forEach(rt => {
         if (rt.Topics) {
-          rt.Topics.forEach(t => t.Text && t.FirstURL && out.push({ t: t.Text, u: t.FirstURL }));
+          rt.Topics.forEach(t => t.Text && t.FirstURL && out.push({ t: t.Text, u: cleanDuckURL(t.FirstURL) }));
         } else if (rt.Text && rt.FirstURL) {
-          out.push({ t: rt.Text, u: rt.FirstURL });
+          out.push({ t: rt.Text, u: cleanDuckURL(rt.FirstURL) });
         }
       });
       if (!out.length && data.AbstractText && data.AbstractURL) {
-        out.push({ t: data.AbstractText, u: data.AbstractURL });
+        out.push({ t: data.AbstractText, u: cleanDuckURL(data.AbstractURL) });
       }
       const seen = new Set();
       return out.filter(x => !seen.has(x.u) && seen.add(x.u));
@@ -201,9 +217,31 @@
         $('#visitorCounter').innerText = `Visitor Counter: ${visits}`;
         localStorage.setItem('visits', visits); // Guarda el contador actualizado
 
+        // Guardar estadísticas de búsqueda
+        saveSearchStats(q);
+
       } catch (e) {
         $('#results').innerHTML = `<div class="error">Error: ${e.message}</div>`;
       }
+      showSearchStats(); // Mostrar estadísticas
+    }
+
+    // Función para guardar estadísticas de búsqueda
+    function saveSearchStats(query) {
+      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
+      const searchData = {
+        query: query,
+        date: new Date().toISOString()
+      };
+      searchHistory.push(searchData);
+      localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+    }
+
+    // Función para mostrar estadísticas de búsqueda
+    function showSearchStats() {
+      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
+      const stats = searchHistory.map(entry => `Search: "${entry.query}" on ${entry.date}`).join('<br>');
+      $('#searchStats').innerHTML = stats || 'No search history available.';
     }
 
     $('#btnSearch').addEventListener('click', run);
