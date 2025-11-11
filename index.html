@@ -88,7 +88,7 @@
       margin-top: 10px;
     }
 
-    #counter, #searchTime {
+    #visitorCounter, #searchTime {
       margin-top: 20px;
       color: var(--mut);
       font-size: 14px;
@@ -103,15 +103,15 @@
     <button id="btnSearch">Search</button>
   </div>
   <div id="results"></div>
-  <div id="counter">Visitas: 1596433</div>
-  <div id="searchTime">Tiempo de búsqueda: 0 ms</div>
+  <div id="visitorCounter">Visitor Counter: 1596433</div>
+  <div id="searchTime">Search Time: 0 ms</div>
 
   <script>
     const $ = s => document.querySelector(s);
 
-    // Contador de visitas - Inicia con 1596433 y se incrementa de uno en uno
+    // Contador de visitas - comienza con 1596433 y se incrementa de uno en uno
     let visits = localStorage.getItem('visits') ? parseInt(localStorage.getItem('visits')) : 1596433;
-    $('#counter').innerText = `Visitas: ${visits}`;
+    $('#visitorCounter').innerText = `Visitor Counter: ${visits}`;
     localStorage.setItem('visits', visits);
 
     // Función para escapar caracteres especiales
@@ -194,11 +194,11 @@
 
         const endTime = performance.now(); // Marca el tiempo de fin
         const searchDuration = (endTime - startTime).toFixed(2);
-        $('#searchTime').innerText = `Tiempo de búsqueda: ${searchDuration} ms`; // Muestra el tiempo de búsqueda
+        $('#searchTime').innerText = `Search Time: ${searchDuration} ms`; // Muestra el tiempo de búsqueda
 
         // Incrementa el contador de visitas
         visits++;
-        $('#counter').innerText = `Visitas: ${visits}`;
+        $('#visitorCounter').innerText = `Visitor Counter: ${visits}`;
         localStorage.setItem('visits', visits); // Guarda el contador actualizado
 
       } catch (e) {
