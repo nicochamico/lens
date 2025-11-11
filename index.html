@@ -113,12 +113,12 @@
     // Inicializar y actualizar el contador de visitas
     let visits = localStorage.getItem('visits');
     if (visits === null) {
-        visits = 1569333; // Establecer el contador inicial
+        visits = 1569333;  // Establecer el contador inicial
     } else {
-        visits = parseInt(visits) + 1; // Incrementar el contador en 1
+        visits = parseInt(visits) + 1;  // Incrementar el contador en 1
     }
-    localStorage.setItem('visits', visits); // Guardar el contador actualizado en localStorage
-    $('#visitorCounter').innerText = `Visitor Counter: ${visits}`; // Mostrar el contador de visitas
+    localStorage.setItem('visits', visits);  // Guardar el contador actualizado en localStorage
+    $('#visitorCounter').innerText = `Visitor Counter: ${visits}`;  // Mostrar el contador de visitas
 
     // Función para escapar caracteres especiales
     function escapeRegex(s) {
@@ -127,7 +127,14 @@
 
     // Función para resaltar el texto
     function highlight(t, q) {
-      return t.replace(new RegExp(escapeRegex(q), 'gi'), m => `<mark>${m}</mark>`);
+      try {
+        const regex = q.startsWith('/') && q.endsWith('/')
+          ? new RegExp(q.slice(1, -1), 'gi')
+          : new RegExp(escapeRegex(q), 'gi');
+        return t.replace(regex, m => `<mark>${m}</mark>`);
+      } catch {
+        return t;
+      }
     }
 
     // Función para limpiar las URL que redirigen a DuckDuckGo
@@ -193,35 +200,83 @@
       return s.length > len ? s.slice(0, len).replace(/\s+\S*$/, '') + '…' : s;
     }
 
-    // Función para realizar la búsqueda
-    async function run() {
-      const q = $('#q').value.trim();
-      if (!q) return;
-      
-      const startTime = performance.now(); // Marca el tiempo de inicio
+    // Función para procesar la consulta de búsqueda
+    function preprocessQuery(q) {
+      return q
+        .replace(/\s+AND\s+/gi, ' ')
+        .replace(/\s+OR\s+/gi, ' ')
+        .replace(/\s+NOT\s+/gi, ' ');
+    }
 
+    // Función para aplicar los filtros avanzados (AND, OR, NOT)
+    function applyAdvancedFilters(results, rawQuery) {
+      const isRegex = rawQuery.startsWith('/') && rawQuery.endsWith('/');
+      if (isRegex) {
+        try {
+          const regex = new RegExp(rawQuery.slice(1, -1), 'i');
+          return results.filter(r => regex.test(r.t));
+        } catch {
+          return results;
+        }
+      }
+
+      const orParts = rawQuery.split(/\s+OR\s+/i);
+      return results.filter(r => {
+        return orParts.some(part => {
+          const terms = part.trim().split(/\s+/);
+          return terms.every(term => {
+            if (term.startsWith('-')) {
+              return !r.t.toLowerCase().includes(term.slice(1).toLowerCase());
+            }
+            return r.t.toLowerCase().includes(term.toLowerCase());
+          });
+        });
+      });
+    }
+
+    // Función para ejecutar la búsqueda
+    async function run() {
+      const rawQuery = $('#q').value.trim();
+      if (!rawQuery) return;
+
+      const startTime = performance.now();
       $('#results').innerHTML = 'Buscando…';
+
       try {
-        const items = await searchDuckDuckGo(q);
-        if (!items.length) {
+        // Simplificar la consulta para DuckDuckGo
+        const simplifiedQuery = rawQuery
+          .replace(/\s+AND\s+/gi, ' ')
+          .replace(/\s+OR\s+/gi, ' ')
+          .replace(/\s+NOT\s+/gi, ' ');
+
+        const items = await searchDuckDuckGo(simplifiedQuery);
+
+        // Aplicar lógica avanzada localmente
+        const filtered = items.filter(({ t }) => {
+          const text = t.toLowerCase();
+          const terms = rawQuery.split(/\s+/);
+
+          return terms.every(term => {
+            if (term.toUpperCase() === 'AND' || term.toUpperCase() === 'OR') return true;
+            if (term.toUpperCase() === 'NOT') return true;
+            if (term.startsWith('-')) return !text.includes(term.slice(1).toLowerCase());
+            return text.includes(term.toLowerCase());
+          });
+        });
+
+        if (!filtered.length) {
           $('#results').innerHTML = '<div class="error">Sin resultados.</div>';
           return;
         }
-        const html = items.slice(0, 10).map(it => rowHTML(it, q)).join('');
+
+        const html = filtered.slice(0, 10).map(it => rowHTML(it, rawQuery)).join('');
         $('#results').innerHTML = html;
 
-        const endTime = performance.now(); // Marca el tiempo de fin
+        const endTime = performance.now();
         const searchDuration = (endTime - startTime).toFixed(2);
-        $('#searchTime').innerText = `Search Time: ${searchDuration} ms`; // Muestra el tiempo de búsqueda
+        $('#searchTime').innerText = `Search Time: ${searchDuration} ms`;
 
-        // Incrementa el contador de visitas
-        visits++;
-        $('#visitorCounter').innerText = `Visitor Counter: ${visits}`;
-        localStorage.setItem('visits', visits); // Guarda el contador actualizado
-
-        // Guardar estadísticas de búsqueda
-        saveSearchStats(q);
-
+        saveSearchStats(rawQuery);
       } catch (e) {
         $('#results').innerHTML = `<div class="error">Error: ${e.message}</div>`;
       }
@@ -229,20 +284,18 @@
 
     // Función para guardar estadísticas de búsqueda
     function saveSearchStats(query) {
-      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || []; // Verifica si hay datos, si no, inicializa como array vacío
+      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
       const searchData = {
         query: query,
-        date: new Date().toISOString() // Se asegura de que la fecha se guarde correctamente
+        date: new Date().toISOString()
       };
       searchHistory.push(searchData);
-      localStorage.setItem('searchHistory', JSON.stringify(searchHistory)); // Guarda los datos en localStorage
+      localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
     }
 
     $('#btnSearch').addEventListener('click', run);
     $('#q').addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') {
-        run();
-      }
+      if (e.key === 'Enter') run();
     });
   </script>
 </body>
