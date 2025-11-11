@@ -118,20 +118,43 @@
   <div id="results"></div>
 
   <script>
-    function highlightResults(text, query) {
-      var regex = new RegExp(query, 'gi');
-      return text.replace(regex, function(match) {
-        return '<mark>' + match + '</mark>';
-      });
+    // Mostrar/ocultar las opciones de búsqueda avanzada
+    document.querySelector('#advChk').addEventListener('change', function() {
+      var advPanel = document.querySelector('#advPanel');
+      advPanel.style.display = this.checked ? 'block' : 'none';
+    });
+
+    function highlightResults(text, query, options) {
+      // Si RegExp está habilitado, usamos la expresión regular
+      if (options.regexp) {
+        var regex = new RegExp(query, 'gi');
+        return text.replace(regex, function(match) {
+          return '<mark>' + match + '</mark>';
+        });
+      }
+
+      // Si no, buscamos el texto de forma simple
+      return text.split(query).join('<mark>' + query + '</mark>');
     }
 
     function performSearch() {
       var query = document.querySelector('#q').value.trim();
       if (!query) return;
 
+      var options = {
+        regexp: document.querySelector('#optRegexp').checked,
+        logic: document.querySelector('#optLogic').checked,
+        prox: document.querySelector('#optProx').checked,
+        fuzzy: document.querySelector('#optFuzzy').checked,
+        tech: document.querySelector('#optTech').checked
+      };
+
+      // Texto para buscar dentro
       var text = `BGP and MPLS are core in SP networks. MPLS LDP, RSVP-TE, and SR enable label switching. OSPF, IS-IS and BGP form the underlay. Engineers watch latency, jitter, packet loss, QoS. ASN65001 peers with ASN65002 via eBGP. IPs like 192.168.1.1 and 10.255.0.5 appear in configs. Common ports: 443, 22, 179, 80.`;
 
-      var highlightedText = highlightResults(text, query);
+      // Realizamos la búsqueda con las opciones seleccionadas
+      var highlightedText = highlightResults(text, query, options);
+
       document.querySelector('#results').innerHTML = highlightedText;
     }
 
