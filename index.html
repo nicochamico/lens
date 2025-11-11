@@ -87,6 +87,12 @@
       color: #ff6b6b;
       margin-top: 10px;
     }
+
+    #counter, #searchTime {
+      margin-top: 20px;
+      color: var(--mut);
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -97,9 +103,17 @@
     <button id="btnSearch">Search</button>
   </div>
   <div id="results"></div>
+  <div id="counter">Visitas: 0</div>
+  <div id="searchTime">Tiempo de búsqueda: 0 ms</div>
 
   <script>
     const $ = s => document.querySelector(s);
+
+    // Contador de visitas usando localStorage
+    let visits = localStorage.getItem('visits') || 0;
+    visits = parseInt(visits) + 1;
+    localStorage.setItem('visits', visits);
+    $('#counter').innerText = `Visitas: ${visits}`;
 
     // Función para escapar caracteres especiales
     function escapeRegex(s) {
@@ -172,6 +186,9 @@
     async function run() {
       const q = $('#q').value.trim();
       if (!q) return;
+      
+      const startTime = performance.now(); // Marca el tiempo de inicio
+
       $('#results').innerHTML = 'Buscando…';
       try {
         const items = await searchDuckDuckGo(q);
@@ -181,6 +198,11 @@
         }
         const html = items.slice(0, 10).map(it => rowHTML(it, q)).join('');
         $('#results').innerHTML = html;
+
+        const endTime = performance.now(); // Marca el tiempo de fin
+        const searchDuration = (endTime - startTime).toFixed(2);
+        $('#searchTime').innerText = `Tiempo de búsqueda: ${searchDuration} ms`; // Muestra el tiempo de búsqueda
+
       } catch (e) {
         $('#results').innerHTML = `<div class="error">Error: ${e.message}</div>`;
       }
