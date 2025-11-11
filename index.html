@@ -44,8 +44,6 @@
         color: #000;
         font-weight: 600;
       }
-      #adv { margin-top: 16px; font-size: 14px; color: #ccc; }
-      #advPanel { display: none; margin-top: 12px; color: #ccc; font-size: 14px; line-height: 1.8; }
       #results { margin-top: 36px; max-width: 900px; width: 100%; color: #e8e8e8; font-size: 16px; line-height: 1.6; word-wrap: break-word; }
       mark { background: #fff59d; color: #000; padding: 2px 4px; border-radius: 4px; }
     </style>
@@ -54,37 +52,20 @@
     <img id="logo" src="logo.png" alt="Lens Logo"/>
     <div id="tagline">Simple on the outside. Powerful on the inside.</div>
 
-    <!-- Visitas -->
+    <!-- Contador de visitas -->
     <div id="visitorCount">
       <p>Visitor Counter: <span id="counter">1533699</span></p>
     </div>
 
     <div id="searchBox">
-      <input id="q" type="text" placeholder='Search (text, AND/OR/XOR, "bgp mpls"~5, or /regexp/i'/>
+      <input id="q" type="text" placeholder='Search'/>
       <button id="btnSearch">Search</button>
-    </div>
-
-    <label id="adv">
-      <input type="checkbox" id="advChk"/> Advanced search
-    </label>
-    <div id="advPanel">
-      <label><input type="checkbox" id="optRegexp"/> Enable RegExp</label><br>
-      <label><input type="checkbox" id="optLogic"/> Logical operators (AND / OR / XOR)</label><br>
-      <label><input type="checkbox" id="optProx"/> Proximity search</label><br>
-      <label><input type="checkbox" id="optFuzzy"/> Fuzzy search</label><br>
-      <label><input type="checkbox" id="optTech"/> Technical patterns (IPs, ports, ASNs)</label>
     </div>
 
     <div id="results"></div>
 
     <script>
       // Mostrar/ocultar las opciones de búsqueda avanzada cuando se marque el checkbox
-      document.querySelector('#advChk').addEventListener('change', function() {
-        var advPanel = document.querySelector('#advPanel');
-        advPanel.style.display = this.checked ? 'block' : 'none';
-      });
-
-      // Contador de visitas
       let visitorCount = 1533699; // Inicia en 1533699
       document.getElementById('counter').textContent = visitorCount;
 
@@ -95,33 +76,20 @@
       };
 
       // Función para resaltar los resultados de la búsqueda
-      function highlightResults(text, query, options) {
-        // Si RegExp está habilitado, usamos la expresión regular
-        if (options.regexp) {
-          var regex = new RegExp(query, 'gi');
-          return text.replace(regex, function(match) {
-            return '<mark>' + match + '</mark>';
-          });
-        }
-        // Si no, buscamos el texto de forma simple
-        return text.split(query).join('<mark>' + query + '</mark>');
+      function highlightResults(text, query) {
+        var regex = new RegExp(query, 'gi');
+        return text.replace(regex, function(match) {
+          return '<mark>' + match + '</mark>';
+        });
       }
 
       // Realizar la búsqueda
       function performSearch() {
         var query = document.querySelector('#q').value.trim();
         if (!query) return;
-        var options = {
-          regexp: document.querySelector('#optRegexp').checked,
-          logic: document.querySelector('#optLogic').checked,
-          prox: document.querySelector('#optProx').checked,
-          fuzzy: document.querySelector('#optFuzzy').checked,
-          tech: document.querySelector('#optTech').checked
-        };
-
         var text = `BGP and MPLS are core in SP networks. MPLS LDP, RSVP-TE, and SR enable label switching. OSPF, IS-IS and BGP form the underlay. Engineers watch latency, jitter, packet loss, QoS. ASN65001 peers with ASN65002 via eBGP. IPs like 192.168.1.1 and 10.255.0.5 appear in configs. Common ports: 443, 22, 179, 80.`;
 
-        var highlightedText = highlightResults(text, query, options);
+        var highlightedText = highlightResults(text, query);
         document.querySelector('#results').innerHTML = highlightedText;
       }
 
