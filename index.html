@@ -220,12 +220,11 @@
       } catch (e) {
         $('#results').innerHTML = `<div class="error">Error: ${e.message}</div>`;
       }
-      showSearchStats(); // Mostrar estadísticas
     }
 
     // Función para guardar estadísticas de búsqueda
     function saveSearchStats(query) {
-      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
+      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || []; // Verifica si hay datos, si no, inicializa como array vacío
       const searchData = {
         query: query,
         date: new Date().toISOString()
@@ -234,12 +233,22 @@
       localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
     }
 
-    // Función para mostrar estadísticas de búsqueda
-    function showSearchStats() {
-      const searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
-      const stats = searchHistory.map(entry => `Search: "${entry.query}" on ${entry.date}`).join('<br>');
-      $('#searchStats').innerHTML = stats || 'No search history available.';
+    // Función para obtener las estadísticas de búsqueda (solo para ti)
+    function getSearchStats() {
+      try {
+        const searchHistory = JSON.parse(localStorage.getItem('searchHistory'));
+        if (!Array.isArray(searchHistory)) { // Verifica que los datos sean un array
+          throw new Error('Data format is incorrect');
+        }
+        return searchHistory;
+      } catch (e) {
+        console.error('Error loading search statistics:', e);
+        return []; // Si hay un error, devuelve un array vacío
+      }
     }
+
+    // Mostrar estadísticas en la consola
+    console.log(getSearchStats()); // Solo se mostrarán en la consola, no en la página
 
     $('#btnSearch').addEventListener('click', run);
     $('#q').addEventListener('keydown', function (e) {
