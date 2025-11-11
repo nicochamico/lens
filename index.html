@@ -104,14 +104,14 @@
   </div>
   <div id="results"></div>
   <div id="counter">Visitas: 0</div>
-  <div id="searchTime">Tiempo de búsqueda: 0 ms</div>
+  <div id="searchTime">search time: 0 ms</div>
 
   <script>
     const $ = s => document.querySelector(s);
 
     // Contador de visitas usando un número aleatorio alto
     let visits = Math.floor(Math.random() * 1000000) + 1000000; // Número aleatorio alto
-    $('#counter').innerText = `Visitas: ${visits}`;
+    $('#counter').innerText = `site counter: ${visits}`;
 
     // Función para escapar caracteres especiales
     function escapeRegex(s) {
@@ -121,6 +121,18 @@
     // Función para resaltar el texto
     function highlight(t, q) {
       return t.replace(new RegExp(escapeRegex(q), 'gi'), m => `<mark>${m}</mark>`);
+    }
+
+    // Función para limpiar las URL que redirigen a DuckDuckGo
+    function cleanDuckURL(url) {
+      try {
+        const u = new URL(url);
+        if (u.hostname === 'duckduckgo.com' && u.pathname === '/l/') {
+          const real = u.searchParams.get('uddg');
+          if (real) return decodeURIComponent(real);
+        }
+      } catch {}
+      return url;
     }
 
     // Función para realizar la búsqueda en DuckDuckGo
@@ -137,19 +149,19 @@
       const out = [];
       // 1) Results directos
       (data.Results || []).forEach(r => {
-        if (r.Text && r.FirstURL) out.push({ t: r.Text, u: r.FirstURL });
+        if (r.Text && r.FirstURL) out.push({ t: r.Text, u: cleanDuckURL(r.FirstURL) });
       });
       // 2) RelatedTopics
       (data.RelatedTopics || []).forEach(rt => {
         if (rt.Topics) {
-          rt.Topics.forEach(t => { if (t.Text && t.FirstURL) out.push({ t: t.Text, u: t.FirstURL }); });
+          rt.Topics.forEach(t => { if (t.Text && t.FirstURL) out.push({ t: t.Text, u: cleanDuckURL(t.FirstURL) }); });
         } else if (rt.Text && rt.FirstURL) {
-          out.push({ t: rt.Text, u: rt.FirstURL });
+          out.push({ t: rt.Text, u: cleanDuckURL(rt.FirstURL) });
         }
       });
       // 3) Abstract como fallback
       if (!out.length && data.AbstractText && data.AbstractURL) {
-        out.push({ t: data.AbstractText, u: data.AbstractURL });
+        out.push({ t: data.AbstractText, u: cleanDuckURL(data.AbstractURL) });
       }
       // Eliminar duplicados
       const seen = new Set();
